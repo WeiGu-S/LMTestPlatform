@@ -8,41 +8,41 @@ class DatasetController(QObject):
     def __init__(self, view):
         super().__init__()
         self.view = view
-        # self.session = DatabaseManager.get_session() # Session will be acquired per operation
+        # self.session = DatabaseManager.get_session() # 每次操作时获取 Session
         self.logger = get_logger()
-        # No need to check session here, it will be checked when acquired
+        # 此处无需检查 session，获取时会自动检查
         self.logger.info("DatasetController 初始化完成")
         self.current_page = 1
-        # 从 view 获取初始 items_per_page
+        # 从视图获取初始每页条数
         self.items_per_page = int(self.view.page_size_combo.currentText())
         self.connect_signals()
-        self.load_initial_data() # 添加初始数据加载
+        self.load_initial_data() # 加载初始数据
 
     def connect_signals(self):
-        """连接界面信号与控制器槽函数。"""
+        """连接界面信号与控制器槽函数"""
         self.view.query_button.clicked.connect(self.query_data)
         self.view.reset_button.clicked.connect(self.reset_filters)
         self.view.new_button.clicked.connect(self.create_new_dataset)
         self.view.export_button.clicked.connect(self.export_data)
         self.view.prev_button.clicked.connect(self.prev_page)
         self.view.next_button.clicked.connect(self.next_page)
-        # 连接新的分页控件信号
+        # 连接分页控件信号
         self.view.page_combo.currentIndexChanged.connect(self.go_to_page_from_combo)
         self.view.page_size_combo.currentIndexChanged.connect(self.change_page_size)
-        # TODO: 连接表格内操作按钮的信号 (需要在 view 中暴露或通过 controller 传递)
-        # Example: self.view.dataset_table.cellWidget(row, 6).findChild(QPushButton, "modify_button").clicked.connect(...)
+        # TODO: 连接表格内操作按钮信号（需视图暴露或通过控制器传递）
+        # 示例：self.view.dataset_table.cellWidget(row, 6).findChild(QPushButton, "modify_button").clicked.connect(...)
 
     @Slot()
     def load_initial_data(self):
-        """加载初始数据，例如设置默认日期并加载第一页。"""
-        # 设置默认日期范围（如果需要）
+        """加载初始数据，如设置默认日期并加载第一页"""
+        # 设置默认日期范围（如有需要）
         # self.view.start_date_edit.setDate(QDate.currentDate().addMonths(-1))
         # self.view.end_date_edit.setDate(QDate.currentDate())
         self.load_data()
 
     @Slot()
     def load_data(self):
-        """加载初始或过滤后的数据到表格。"""
+        """加载初始或过滤后的数据到表格"""
         filters = self.get_filters()
         self.logger.info(f"加载数据，过滤条件: {filters}, 页码: {self.current_page}, 每页: {self.items_per_page}")
         try:
@@ -62,39 +62,39 @@ class DatasetController(QObject):
             # 可在界面提示错误
             self.view.update_table([], 0, 1, 1)
         finally:
-            DatabaseManager.remove_session() # Ensure session is removed after operation
+            DatabaseManager.remove_session() # 操作后确保移除 session
 
     def get_filters(self):
-        """从界面收集过滤条件。"""
+        """从界面收集过滤条件"""
         filters = {
             'dataset_name': self.view.name_filter_input.text().strip(),
             'status': self.view.status_filter_combo.currentText(),
             'dataset_category': self.view.category_filter_combo.currentText(),
-            # 确保日期有效才传递
+            # 仅在日期有效时传递
             'start_date': self.view.start_date_edit.date().toPython() if self.view.start_date_edit.date().isValid() else None,
             'end_date': self.view.end_date_edit.date().toPython() if self.view.end_date_edit.date().isValid() else None,
         }
-        # 清理空值和 '全部' 过滤条件
+        # 清理空值和“全部”过滤条件
         cleaned_filters = {}
         for k, v in filters.items():
             if v is not None and v != '':
                 if k in ['status', 'dataset_category'] and v == '全部':
-                    continue # 不传递 '全部' 作为过滤条件
+                    continue # 不传递“全部”作为过滤条件
                 cleaned_filters[k] = v
         return cleaned_filters
 
     @Slot()
     def query_data(self):
-        """查询按钮点击槽函数。"""
-        self.current_page = 1 # 重置到第一页
+        """查询按钮点击槽函数"""
+        self.current_page = 1 # 查询后重置到第一页
         self.load_data()
 
     @Slot()
     def reset_filters(self):
-        """重置筛选条件槽函数。"""
+        """重置筛选条件槽函数"""
         self.view.name_filter_input.clear()
-        self.view.status_filter_combo.setCurrentIndex(0) # 假设 '全部' 在索引 0
-        self.view.category_filter_combo.setCurrentIndex(0) # 假设 '全部' 在索引 0
+        self.view.status_filter_combo.setCurrentIndex(0) # 假设“全部”在索引 0
+        self.view.category_filter_combo.setCurrentIndex(0) # 假设“全部”在索引 0
         # 重置为默认日期或清空
         self.view.start_date_edit.setDate(QDate.currentDate().addMonths(-1))
         self.view.end_date_edit.setDate(QDate.currentDate())
@@ -103,17 +103,17 @@ class DatasetController(QObject):
 
     @Slot()
     def prev_page(self):
-        """上一页。"""
+        """上一页"""
         if self.current_page > 1:
             self.current_page -= 1
             self.load_data()
 
     @Slot()
     def next_page(self):
-        """下一页。"""
-        # 需要知道总页数来判断是否能到下一页
-        # 这个逻辑在 load_data 之后，由 view.update_table 更新按钮状态
-        # 这里只需增加页码并加载
+        """下一页"""
+        # 需要知道总页数以判断是否能到下一页
+        # 该逻辑在 load_data 后由 view.update_table 更新按钮状态
+        # 此处只需增加页码并加载
         self.current_page += 1
         self.load_data()
 

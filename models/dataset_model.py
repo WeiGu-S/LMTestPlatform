@@ -18,7 +18,7 @@ class DatasetCategory(enum.Enum):
     IMAGE = "图片"
     AUDIO = "音频"
     TEXT = "文本"
-    # 根据需要添加其他类别
+    # 可根据实际需求添加其他类别
 
 class DatasetModel(Base):
     __tablename__ = 't_dataset_info'
@@ -86,7 +86,7 @@ class DatasetModel(Base):
             if page < 1:
                 page = 1
             elif page > total_pages and total_pages > 0:
-                page = total_pages # 如果页码超过总页数，则调整为最后一页
+                page = total_pages # 若页码超出总页数，则调整为最后一页
 
             offset = (page - 1) * per_page
             datasets = query.order_by(cls.created_time.desc()).offset(offset).limit(per_page).all()
@@ -97,7 +97,7 @@ class DatasetModel(Base):
             return dataset_dicts, total_items, total_pages
         except Exception as e:
             logger.error(f"获取分页数据集时出错: {e}", exc_info=True)
-            session.rollback() # 发生错误时回滚
+            session.rollback() # 出错时回滚
             return [], 0, 1
 
     @classmethod

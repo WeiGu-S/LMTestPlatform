@@ -14,7 +14,7 @@ class DatasetView(QWidget):
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
 
-        # 顶部标题区域（减小高度）
+        # 顶部标题区域（高度较小）
         title_label = QLabel("数据集管理")
         title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #222; padding: 8px 0 4px 0;")
         main_layout.addWidget(title_label)
