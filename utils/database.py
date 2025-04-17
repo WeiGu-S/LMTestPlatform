@@ -1,87 +1,90 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker, scoped_session
 from configparser import ConfigParser
 from utils.logger import get_logger
+import os
+
+logger = get_logger()
 
 class DatabaseManager:
-    _instance = None
     _engine = None
-    _Session = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(DatabaseManager, cls).__new__(cls)
-            cls._instance._initialize()
-        return cls._instance
-
-    def _initialize(self):
-        self.logger = get_logger()
-        config = ConfigParser()
-        try:
-            config.read('config/database.ini')
-            params = config['mysql']
-            db_url = f"mysql+pymysql://{params['user']}:{params['password']}@{params['host']}:{params['port']}/{params['database']}?charset=utf8mb4"
-            
-            pool_size = int(params.get('pool_size', 5))
-            pool_recycle = int(params.get('pool_recycle', 3600))
-
-            self._engine = create_engine(
-                db_url,
-                pool_size=pool_size,
-                pool_recycle=pool_recycle,
-                echo=False # Set to True for debugging SQL queries
-            )
-            self._Session = sessionmaker(bind=self._engine)
-            self.logger.info("Database engine and session maker initialized successfully.")
-            # Test connection
-            try:
-                with self._engine.connect() as connection:
-                    self.logger.info("Database connection successful.")
-            except SQLAlchemyError as e:
-                self.logger.error(f"Database connection test failed: {e}")
-                self._engine = None
-                self._Session = None
-
-        except Exception as e:
-            self.logger.error(f"Failed to initialize database manager: {e}")
-            self._engine = None
-            self._Session = None
+    _session_factory = None
+    _scoped_session = None
 
     @classmethod
-    def get_session(cls) -> Session:
-        """Provides a new database session."""
-        if cls._instance is None:
-            cls() # Initialize if not already done
-        
-        if cls._Session:
+    def initialize_engine(cls):
+        """Initializes the SQLAlchemy engine based on the config file."""
+        if cls._engine is not None:
+            logger.info("Database engine already initialized.")
+            return
+
+        config_path = 'config/database.ini'
+        if not os.path.exists(config_path):
+            logger.error(f"Database configuration file not found at: {config_path}")
+            raise FileNotFoundError(f"Database configuration file not found: {config_path}")
+
+        config = ConfigParser()
+        config.read(config_path)
+
+        try:
+            params = config['mysql']
+            db_url = f"mysql+pymysql://{params['user']}:{params['password']}@{params['host']}:{params.getint('port', 3306)}/{params['database']}?charset=utf8mb4"
+            cls._engine = create_engine(db_url, echo=False) # Set echo=True for debugging SQL
+            cls._session_factory = sessionmaker(bind=cls._engine)
+            # Use scoped_session for thread-local session management, common in web/GUI apps
+            cls._scoped_session = scoped_session(cls._session_factory)
+            logger.info("Database engine and session factory initialized successfully.")
+
+            # Test connection
             try:
-                session = cls._Session()
-                # self.logger.debug("Database session created.") # Optional: log session creation
-                return session
-            except Exception as e:
-                cls._instance.logger.error(f"Failed to create database session: {e}")
-                return None
-        else:
-            cls._instance.logger.error("Session maker not initialized. Cannot create session.")
-            return None
+                with cls._engine.connect() as connection:
+                    logger.info("Database connection successful.")
+            except Exception as conn_err:
+                logger.error(f"Database connection test failed: {conn_err}", exc_info=True)
+                cls._engine = None # Reset on connection failure
+                cls._session_factory = None
+                cls._scoped_session = None
+                raise # Re-raise the connection error
+
+        except KeyError as e:
+            logger.error(f"Missing key in database config: {e}")
+            raise ValueError(f"Missing required key in database config: {e}")
+        except Exception as e:
+            logger.error(f"Error initializing database engine: {e}", exc_info=True)
+            raise
 
     @classmethod
     def get_engine(cls):
         """Returns the SQLAlchemy engine."""
-        if cls._instance is None:
-            cls()
+        if cls._engine is None:
+            logger.warning("Engine accessed before initialization. Initializing now.")
+            cls.initialize_engine()
         return cls._engine
 
-    def close_connection(self):
-        """Disposes the engine connection pool."""
-        if self._engine:
-            self._engine.dispose()
-            self.logger.info("Database engine disposed.")
-            self._engine = None
-            self._Session = None
-            DatabaseManager._instance = None # Reset instance
+    @classmethod
+    def get_session(cls):
+        """Returns a new SQLAlchemy session from the scoped session factory."""
+        if cls._scoped_session is None:
+            logger.error("Session factory not initialized. Cannot get session.")
+            cls.initialize_engine() # Attempt to initialize if not already
+            if cls._scoped_session is None:
+                 raise RuntimeError("Failed to initialize session factory.")
+        # Return a session managed by the scoped_session registry
+        return cls._scoped_session()
 
-# Optional: Instantiate the manager once if needed globally, 
-# but get_session() handles instantiation on demand.
-# db_manager = DatabaseManager()
+    @classmethod
+    def remove_session(cls):
+        """Removes the current session associated with the scope (e.g., thread)."""
+        if cls._scoped_session:
+            cls._scoped_session.remove()
+            logger.debug("SQLAlchemy session removed from scope.")
+
+    @classmethod
+    def close_engine(cls):
+        """Disposes of the connection pool."""
+        if cls._engine:
+            cls._engine.dispose()
+            cls._engine = None
+            cls._session_factory = None
+            cls._scoped_session = None
+            logger.info("Database engine disposed.")

@@ -1,154 +1,216 @@
-from models.dataset_model import Dataset, DatasetStatus, DatasetCategory # Updated import
-from utils.database import DatabaseManager # Updated import
+from models.dataset_model import DatasetModel
+from utils.database import DatabaseManager
 from utils.logger import get_logger
-from PySide6.QtCore import QObject, Slot, QDate # Added QObject and Slot
+from PySide6.QtCore import QObject, Slot, QDate
 from datetime import datetime
 
-class MainController(QObject): # Inherit from QObject for signals/slots
+class DatasetController(QObject):
     def __init__(self, view):
-        super().__init__() # Call QObject constructor
+        super().__init__()
         self.view = view
-        self.session = DatabaseManager.get_session() # Use updated DatabaseManager
+        # self.session = DatabaseManager.get_session() # Session will be acquired per operation
         self.logger = get_logger()
-        if not self.session:
-            self.logger.error("Failed to get database session. Controller initialization aborted.")
-            # Handle error appropriately, maybe show a message in the view
-            return 
-        self.logger.info("Application controller initialized")
+        # No need to check session here, it will be checked when acquired
+        self.logger.info("DatasetController 初始化完成")
         self.current_page = 1
+        # 从 view 获取初始 items_per_page
         self.items_per_page = int(self.view.page_size_combo.currentText())
         self.connect_signals()
+        self.load_initial_data() # 添加初始数据加载
 
     def connect_signals(self):
-        """Connect UI signals to controller slots."""
+        """连接界面信号与控制器槽函数。"""
         self.view.query_button.clicked.connect(self.query_data)
         self.view.reset_button.clicked.connect(self.reset_filters)
-        self.view.new_button.clicked.connect(self.create_new_dataset) # Placeholder
-        self.view.export_button.clicked.connect(self.export_data) # Placeholder
+        self.view.new_button.clicked.connect(self.create_new_dataset)
+        self.view.export_button.clicked.connect(self.export_data)
         self.view.prev_button.clicked.connect(self.prev_page)
         self.view.next_button.clicked.connect(self.next_page)
-        self.view.page_combo.currentIndexChanged.connect(self.go_to_page) # Use index change
+        # 连接新的分页控件信号
+        self.view.page_combo.currentIndexChanged.connect(self.go_to_page_from_combo)
         self.view.page_size_combo.currentIndexChanged.connect(self.change_page_size)
+        # TODO: 连接表格内操作按钮的信号 (需要在 view 中暴露或通过 controller 传递)
+        # Example: self.view.dataset_table.cellWidget(row, 6).findChild(QPushButton, "modify_button").clicked.connect(...)
+
+    @Slot()
+    def load_initial_data(self):
+        """加载初始数据，例如设置默认日期并加载第一页。"""
+        # 设置默认日期范围（如果需要）
+        # self.view.start_date_edit.setDate(QDate.currentDate().addMonths(-1))
+        # self.view.end_date_edit.setDate(QDate.currentDate())
+        self.load_data()
 
     @Slot()
     def load_data(self):
-        """Loads the initial or filtered data into the table."""
-        if not self.session:
-            self.logger.error("No database session available to load data.")
-            self.view.update_table([], 0, 1, 1) # Show empty table
-            return
-
+        """加载初始或过滤后的数据到表格。"""
         filters = self.get_filters()
-        self.logger.info(f"Loading data with filters: {filters}, page: {self.current_page}, per_page: {self.items_per_page}")
+        self.logger.info(f"加载数据，过滤条件: {filters}, 页码: {self.current_page}, 每页: {self.items_per_page}")
         try:
-            data, total_items, total_pages = Dataset.get_paginated_datasets(
-                self.session,
-                page=self.current_page,
-                per_page=self.items_per_page,
-                filters=filters
-            )
-            self.logger.info(f"Loaded {len(data)} datasets. Total items: {total_items}, Total pages: {total_pages}")
-            self.view.update_table(data, total_items, self.current_page, total_pages)
+            with DatabaseManager.get_session() as session:
+                # 假设模型返回 (data_list, total_items, total_pages)
+                data, total_items, total_pages = DatasetModel.get_paginated_datasets(
+                    session,
+                    page=self.current_page,
+                    per_page=self.items_per_page,
+                    filters=filters
+                )
+                self.logger.info(f"加载数据集 {len(data)} 条，总数: {total_items}，总页数: {total_pages}")
+                # 调用更新后的 update_table 方法
+                self.view.update_table(data, total_items, self.current_page, total_pages)
         except Exception as e:
-            self.logger.error(f"Error loading data: {e}", exc_info=True)
-            # Optionally show an error message to the user via the view
-            self.view.update_table([], 0, 1, 1) # Show empty table on error
+            self.logger.error(f"加载数据出错: {e}", exc_info=True)
+            # 可在界面提示错误
+            self.view.update_table([], 0, 1, 1)
+        finally:
+            DatabaseManager.remove_session() # Ensure session is removed after operation
 
     def get_filters(self):
-        """Collects filter values from the UI."""
+        """从界面收集过滤条件。"""
         filters = {
-            'name': self.view.name_filter_input.text(),
+            'dataset_name': self.view.name_filter_input.text().strip(),
             'status': self.view.status_filter_combo.currentText(),
-            'category': self.view.category_filter_combo.currentText(),
-            # Convert QDate to datetime.date or datetime object
+            'dataset_category': self.view.category_filter_combo.currentText(),
+            # 确保日期有效才传递
             'start_date': self.view.start_date_edit.date().toPython() if self.view.start_date_edit.date().isValid() else None,
             'end_date': self.view.end_date_edit.date().toPython() if self.view.end_date_edit.date().isValid() else None,
         }
-        # Convert end_date to beginning of the next day for inclusive filtering if needed by model
-        # The model already handles adding timedelta, so just pass the date.
-        return {k: v for k, v in filters.items() if v is not None and v != ''} # Clean empty filters
+        # 清理空值和 '全部' 过滤条件
+        cleaned_filters = {}
+        for k, v in filters.items():
+            if v is not None and v != '':
+                if k in ['status', 'dataset_category'] and v == '全部':
+                    continue # 不传递 '全部' 作为过滤条件
+                cleaned_filters[k] = v
+        return cleaned_filters
 
     @Slot()
     def query_data(self):
-        """Slot to handle query button click."""
-        self.current_page = 1 # Reset to first page on new query
+        """查询按钮点击槽函数。"""
+        self.current_page = 1 # 重置到第一页
         self.load_data()
 
     @Slot()
     def reset_filters(self):
-        """Slot to handle reset button click."""
+        """重置筛选条件槽函数。"""
         self.view.name_filter_input.clear()
-        self.view.status_filter_combo.setCurrentIndex(0) # Index 0 is '全部'
-        self.view.category_filter_combo.setCurrentIndex(0)
+        self.view.status_filter_combo.setCurrentIndex(0) # 假设 '全部' 在索引 0
+        self.view.category_filter_combo.setCurrentIndex(0) # 假设 '全部' 在索引 0
+        # 重置为默认日期或清空
         self.view.start_date_edit.setDate(QDate.currentDate().addMonths(-1))
         self.view.end_date_edit.setDate(QDate.currentDate())
-        self.current_page = 1
+        self.current_page = 1 # 重置到第一页
         self.load_data()
 
     @Slot()
     def prev_page(self):
-        """Go to the previous page."""
+        """上一页。"""
         if self.current_page > 1:
             self.current_page -= 1
             self.load_data()
 
     @Slot()
     def next_page(self):
-        """Go to the next page."""
-        # Check against total pages calculated during the last load_data
-        # This requires total_pages to be stored or recalculated if necessary
-        # For simplicity, we rely on the view's button state, but a more robust
-        # approach might store total_pages in the controller.
+        """下一页。"""
+        # 需要知道总页数来判断是否能到下一页
+        # 这个逻辑在 load_data 之后，由 view.update_table 更新按钮状态
+        # 这里只需增加页码并加载
         self.current_page += 1
         self.load_data()
 
     @Slot(int)
-    def go_to_page(self, index):
-        """Go to a specific page selected from the combo box."""
-        if index >= 0: # Check if a valid item is selected
+    def go_to_page_from_combo(self, index):
+        """通过下拉框跳转到指定页。"""
+        if index >= 0:
             try:
                 page_num = int(self.view.page_combo.itemText(index))
                 if page_num != self.current_page:
                     self.current_page = page_num
                     self.load_data()
             except ValueError:
-                self.logger.warning(f"Invalid page number selected: {self.view.page_combo.itemText(index)}")
+                self.logger.warning(f"选择了无效页码: {self.view.page_combo.itemText(index)}")
 
-    @Slot(int)
-    def go_to_specific_page(self, page_num):
-        """Slot to handle clicks on specific page number buttons."""
-        if page_num != self.current_page:
-            self.logger.info(f"Jumping to page: {page_num}")
-            self.current_page = page_num
-            self.load_data()
+    # 如果需要通过页码按钮跳转，可以保留或添加此方法
+    # @Slot(int)
+    # def go_to_specific_page(self, page_num):
+    #     """跳转到指定页（页码按钮点击）。"""
+    #     if page_num != self.current_page:
+    #         self.logger.info(f"跳转到第 {page_num} 页")
+    #         self.current_page = page_num
+    #         self.load_data()
 
     @Slot(int)
     def change_page_size(self, index):
-        """Change the number of items displayed per page."""
+        """更改每页显示条数。"""
         try:
-            self.items_per_page = int(self.view.page_size_combo.itemText(index))
-            self.current_page = 1 # Reset to page 1 when page size changes
-            self.logger.info(f"Page size changed to: {self.items_per_page}")
-            self.load_data()
+            new_page_size = int(self.view.page_size_combo.itemText(index))
+            if new_page_size != self.items_per_page:
+                self.items_per_page = new_page_size
+                self.current_page = 1 # 页大小改变，重置到第一页
+                self.logger.info(f"每页条数更改为: {self.items_per_page}")
+                self.load_data()
         except ValueError:
-             self.logger.warning(f"Invalid page size selected: {self.view.page_size_combo.itemText(index)}")
+            self.logger.warning(f"选择了无效的每页条数: {self.view.page_size_combo.itemText(index)}")
 
     @Slot()
     def create_new_dataset(self):
-        """Placeholder for creating a new dataset."""
-        self.logger.info("Placeholder: 'Create New Dataset' button clicked.")
-        # Implementation would involve opening a new dialog/window
+        """新建数据集按钮点击槽函数（待实现）。"""
+        self.logger.info("点击了新建数据集按钮（待实现）")
+        # 这里可以弹出新建/编辑对话框
+        # from views.dataset_edit_dialog import DatasetEditDialog
+        # dialog = DatasetEditDialog(self.view) # 传入父窗口
+        # if dialog.exec():
+        #     # 处理对话框返回的数据，创建新数据集
+        #     new_data = dialog.get_data()
+        #     # ... 调用 model 创建 ...
+        #     self.load_data() # 刷新列表
+        pass
 
     @Slot()
     def export_data(self):
-        """Placeholder for exporting data."""
-        self.logger.info("Placeholder: 'Export Data' button clicked.")
-        # Implementation would involve fetching all filtered data and writing to a file (e.g., CSV)
+        """导出数据按钮点击槽函数（待实现）。"""
+        self.logger.info("点击了导出数据按钮（待实现）")
+        # 1. 获取当前筛选条件
+        filters = self.get_filters()
+        # 2. 弹出文件保存对话框 (可以使用 view 的 show_export_dialog)
+        # file_path = self.view.show_export_dialog()
+        # if file_path:
+        #    try:
+        #        with DatabaseManager.get_session() as session:
+        #            # 3. 调用 model 获取所有符合条件的数据（不分页）
+        #            all_data = Dataset.get_all_datasets(session, filters=filters)
+        #        # 4. 实现导出逻辑 (e.g., to CSV, Excel)
+        #        self.logger.info(f"准备导出 {len(all_data)} 条数据到 {file_path}")
+        #        # ... export logic ...
+        #    except Exception as e:
+        #        self.logger.error(f"导出数据时出错: {e}", exc_info=True)
+        #        # Show error message
+        #    finally:
+        #        DatabaseManager.remove_session()
+        #    # ... export logic ...
+        pass
 
-    def close_app(self):
-        self.logger.info("Application shutdown initiated by controller")
-        if self.session:
-            self.session.close()
-            self.logger.info("Database session closed.")
-        # View closing is handled by the application's main loop usually
-        # self.view.close() # Usually not needed here if app.exec() handles it
+    # --- 新增：处理表格内按钮点击 --- (需要 view 配合传递信号或行号)
+    @Slot(int)
+    def modify_item(self, row_index):
+        """处理修改按钮点击 (示例)"""
+        item_id = self.view.dataset_table.item(row_index, 0).text() # 获取ID
+        self.logger.info(f"请求修改行 {row_index}, ID: {item_id} (待实现)")
+        # 弹出编辑对话框，加载对应 ID 的数据
+        # ... dialog logic ...
+        # if dialog.exec():
+        #    # ... update model ...
+        #    self.load_data() # 刷新
+
+    @Slot(int)
+    def view_item(self, row_index):
+        """处理查看按钮点击 (示例)"""
+        item_id = self.view.dataset_table.item(row_index, 0).text() # 获取ID
+        self.logger.info(f"请求查看行 {row_index}, ID: {item_id} (待实现)")
+        # 弹出只读详情对话框或导航到详情页
+        # ... view/dialog logic ...
+
+    # def close_app(self):
+    #     """应用关闭处理 - Session management is now handled per operation or via remove_session."""
+    #     self.logger.info("控制器清理")
+    #     DatabaseManager.remove_session() # Ensure session is removed if app closes unexpectedly
+        # self.view.close() # 通常由主应用循环处理

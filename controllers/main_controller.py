@@ -1,28 +1,21 @@
-from models.dataset_model import Dataset, DatasetStatus, DatasetCategory # Updated import
-from utils.database import DatabaseManager # Updated import
-from utils.logger import get_logger
-from PySide6.QtCore import QObject, Slot, QDate # Added QObject and Slot
-from datetime import datetime
+from PySide6.QtCore import QObject, Signal, Slot
 
-class MainController(QObject): # Inherit from QObject for signals/slots
-    def __init__(self, view):
-        super().__init__() # Call QObject constructor
-        self.view = view
-        self.session = DatabaseManager.get_session() # Use updated DatabaseManager
-        self.logger = get_logger()
-        if not self.session:
-            self.logger.error("Failed to get database session. Controller initialization aborted.")
-            # Handle error appropriately, maybe show a message in the view
-            return 
-        self.logger.info("Application controller initialized")
-        self.current_page = 1
-        self.items_per_page = int(self.view.page_size_combo.currentText())
-        self.connect_signals()
-
-    def close_app(self):
-        self.logger.info("Application shutdown initiated by controller")
-        if self.session:
-            self.session.close()
-            self.logger.info("Database session closed.")
-        # View closing is handled by the application's main loop usually
-        # self.view.close() # Usually not needed here if app.exec() handles it
+class MainController(QObject):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.setup_connections()
+    
+    def setup_connections(self):
+        """设置信号和槽连接"""
+        # 主窗口菜单项点击信号已在 MainWindow 内部连接到 set_current_page_from_menu
+        # 这里不再需要连接 currentRowChanged
+        
+        # 初始化显示首页 (通过调用控制器的方法)
+        self.switch_page(0)
+    
+    @Slot(int)
+    def switch_page(self, index):
+        """切换页面"""
+        # 调用 MainWindow 中由控制器调用的方法
+        self.main_window.set_current_page_by_controller(index)
