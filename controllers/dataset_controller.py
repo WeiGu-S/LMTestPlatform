@@ -5,6 +5,7 @@ from utils.logger import get_logger
 from PySide6.QtCore import QObject, Slot, QDate
 from datetime import datetime
 from views.dataset.import_dialog import ImportDialog
+from views.dataset.dataset_view import DatasetView
 
 logger = get_logger("dataset_controller")
 class DatasetController(QObject):
