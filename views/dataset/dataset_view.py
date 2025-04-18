@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QIcon, QColor, QFont, QPalette
+from contrrlers.dataset_controller import DatasetController
 
 class DatasetView(QWidget):
     def __init__(self):
@@ -14,123 +15,241 @@ class DatasetView(QWidget):
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
 
-        # 顶部标题区域（高度较小）
-        title_label = QLabel("数据集管理")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #222; padding: 8px 0 4px 0;")
-        main_layout.addWidget(title_label)
+        # # 顶部标题区域（高度较小）
+        # title_label = QLabel("数据集管理")
+        # title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #222; padding: 8px 0 4px 0;")
+        # main_layout.addWidget(title_label)
+        # 
         # 筛选区域
         filter_frame = QFrame()
         filter_frame.setObjectName("filterFrame")
-        filter_frame.setStyleSheet("#filterFrame { background-color: #ffffff; border-radius: 8px; padding: 8px 10px 8px 10px; border: 1px solid #eaeaea; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }")
+        filter_frame.setStyleSheet("""
+            #filterFrame { 
+                background-color: #ffffff; 
+                border-radius: 4px; 
+                padding: 12px; 
+                border: 1px solid #eaeaea; 
+                box-shadow: 0 2px 6px rgba(0,0,0,0.05); 
+            }
+        """)
+
+        # 使用网格布局，设置合理的间距
         filter_layout = QGridLayout(filter_frame)
-        filter_layout.setSpacing(4)
-        # 第一行筛选
+        filter_layout.setHorizontalSpacing(12)  # 增加水平间距
+        filter_layout.setVerticalSpacing(12)
+        filter_layout.setContentsMargins(12, 12, 12, 12)  # 统一边距
+
+        # 第一行筛选控件
+        # 集合名称
         name_label = QLabel("集合名称")
-        name_label.setStyleSheet("font-size: 14px; color: #333333; font-weight: 500;")
+        name_label.setStyleSheet("""
+            font-size: 14px; 
+            color: #333333; 
+            font-weight: 500;
+            min-width: 60px;
+        """)
         filter_layout.addWidget(name_label, 0, 0)
+
         self.name_filter_input = QLineEdit()
         self.name_filter_input.setPlaceholderText("请输入集合名称")
-        self.name_filter_input.setStyleSheet("QLineEdit { border: 1px solid #dcdfe6; border-radius: 4px; padding: 6px 8px; background-color: #ffffff; font-size: 14px; color: #606266; min-width: 160px; max-width: 180px; } QLineEdit:focus { border-color: #409eff; }")
-        self.name_filter_input.setMinimumHeight(28)
-        self.name_filter_input.setMaximumWidth(180)
+        self.name_filter_input.setStyleSheet("""
+            QLineEdit { 
+                border: 1px solid #dcdfe6; 
+                border-radius: 4px; 
+                padding: 6px 12px; 
+                background-color: #ffffff; 
+                font-size: 14px; 
+                color: #606266; 
+                min-width: 160px;
+            } 
+            QLineEdit:focus { 
+                border-color: #409eff; 
+            }
+        """)
+        self.name_filter_input.setFixedHeight(32)
         filter_layout.addWidget(self.name_filter_input, 0, 1)
+
+        # 状态
         status_label = QLabel("状态")
-        status_label.setStyleSheet("font-size: 14px; color: #333333; font-weight: 500;")
+        status_label.setStyleSheet("""
+            font-size: 14px; 
+            color: #333333; 
+            font-weight: 500;
+            min-width: 40px;
+        """)
         filter_layout.addWidget(status_label, 0, 2)
+
         self.status_filter_combo = QComboBox()
         self.status_filter_combo.addItems(["全部", "启用", "禁用"])
-        self.status_filter_combo.setStyleSheet("QComboBox { border: 1px solid #dcdfe6; border-radius: 4px; padding: 6px 8px; background-color: #ffffff; font-size: 14px; color: #606266; min-width: 70px; max-width: 80px; } QComboBox:hover { border-color: #c0c4cc; } QComboBox:focus { border-color: #409eff; }")
-        self.status_filter_combo.setMinimumHeight(28)
-        self.status_filter_combo.setMaximumWidth(80)
+        self.status_filter_combo.setStyleSheet("""
+            QComboBox { 
+                border: 1px solid #dcdfe6; 
+                border-radius: 4px; 
+                padding: 6px 12px 6px 8px; 
+                background-color: #ffffff; 
+                font-size: 14px; 
+                color: #606266;
+                min-width: 80px;
+            } 
+            QComboBox:hover { 
+                border-color: #c0c4cc; 
+            } 
+            QComboBox:focus { 
+                border-color: #409eff; 
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 24px;
+                border-radius: 0 4px 4px 0;
+            }
+            QComboBox::down-arrow {
+                image: url(utils/img/down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }
+        """)
+        self.status_filter_combo.setFixedHeight(32)
         filter_layout.addWidget(self.status_filter_combo, 0, 3)
+
+        # 数据分类
         category_label = QLabel("数据分类")
-        category_label.setStyleSheet("font-size: 14px; color: #333333; font-weight: 500;")
+        category_label.setStyleSheet("""
+            font-size: 14px; 
+            color: #333333; 
+            font-weight: 500;
+            min-width: 60px;
+        """)
         filter_layout.addWidget(category_label, 0, 4)
+
         self.category_filter_combo = QComboBox()
         self.category_filter_combo.addItems(["全部", "视频", "图片", "文本", "音频"])
-        self.category_filter_combo.setStyleSheet("QComboBox { border: 1px solid #dcdfe6; border-radius: 4px; padding: 6px 8px; background-color: #ffffff; font-size: 14px; color: #606266; min-width: 70px; max-width: 80px; } QComboBox:hover { border-color: #c0c4cc; } QComboBox:focus { border-color: #409eff; }")
-        self.category_filter_combo.setMinimumHeight(28)
-        self.category_filter_combo.setMaximumWidth(80)
+        self.category_filter_combo.setStyleSheet(self.status_filter_combo.styleSheet())  # 复用样式
+        self.category_filter_combo.setFixedHeight(32)
         filter_layout.addWidget(self.category_filter_combo, 0, 5)
-        # 第二行筛选
+
+        # 第二行筛选 - 日期范围
         date_label = QLabel("创建时间")
-        date_label.setStyleSheet("font-size: 14px; color: #333333; font-weight: 500;")
+        date_label.setStyleSheet("""
+            font-size: 14px; 
+            color: #333333; 
+            font-weight: 500;
+            min-width: 60px;
+        """)
         filter_layout.addWidget(date_label, 1, 0)
+
+        # 日期范围控件
+        date_range_layout = QHBoxLayout()
+        date_range_layout.setSpacing(8)  # 减小日期控件之间的间距
+        date_range_layout.setContentsMargins(0, 0, 0, 0)
+
         self.start_date_edit = QDateEdit(QDate.currentDate().addMonths(-1))
         self.start_date_edit.setCalendarPopup(True)
         self.start_date_edit.setDisplayFormat("yyyy-MM-dd")
-        self.start_date_edit.setStyleSheet("QDateEdit { border: 1px solid #dcdfe6; border-radius: 4px; padding: 6px 8px; background-color: #ffffff; font-size: 14px; color: #606266; } QDateEdit:hover { border-color: #c0c4cc; } QDateEdit:focus { border-color: #409eff; }")
-        self.start_date_edit.setMinimumHeight(28)
-        filter_layout.addWidget(self.start_date_edit, 1, 1)
+        self.start_date_edit.setStyleSheet("""
+            QDateEdit { 
+                border: 1px solid #dcdfe6; 
+                border-radius: 4px; 
+                padding: 6px 12px 6px 8px; 
+                background-color: #ffffff; 
+                font-size: 14px; 
+                color: #606266; 
+                min-width: 120px;
+            } 
+            QDateEdit:hover { 
+                border-color: #c0c4cc; 
+            } 
+            QDateEdit:focus { 
+                border-color: #409eff; 
+            }
+            QDateEdit::drop-down {
+                width: 24px;
+                background-color: transparent;
+                subcontrol-position: right center;
+                border-radius: 0 4px 4px 0;
+            }
+            QDateEdit::down-arrow {
+                image: url(utils/img/down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }
+        """)
+        self.start_date_edit.setFixedHeight(32)
+
         to_label = QLabel("至")
-        to_label.setStyleSheet("font-size: 14px; color: #333333; font-weight: 500;")
+        to_label.setStyleSheet("""
+            QLabel { 
+                font-size: 14px; 
+                color: #333333; 
+                padding: 0 4px;
+                background: transparent;
+            }
+        """)
         to_label.setAlignment(Qt.AlignCenter)
-        filter_layout.addWidget(to_label, 1, 2, Qt.AlignCenter)
+
         self.end_date_edit = QDateEdit(QDate.currentDate())
         self.end_date_edit.setCalendarPopup(True)
         self.end_date_edit.setDisplayFormat("yyyy-MM-dd")
-        self.end_date_edit.setStyleSheet("QDateEdit { border: 1px solid #dcdfe6; border-radius: 4px; padding: 6px 8px; background-color: #ffffff; font-size: 14px; color: #606266; } QDateEdit:hover { border-color: #c0c4cc; } QDateEdit:focus { border-color: #409eff; }")
-        self.end_date_edit.setMinimumHeight(28)
-        filter_layout.addWidget(self.end_date_edit, 1, 3)
-        # 查询/重置按钮区域（分两行）
-        query_reset_layout = QVBoxLayout()
+        self.end_date_edit.setStyleSheet(self.start_date_edit.styleSheet())  # 复用样式
+        self.end_date_edit.setFixedHeight(32)
+
+        date_range_layout.addWidget(self.start_date_edit)
+        date_range_layout.addWidget(to_label)
+        date_range_layout.addWidget(self.end_date_edit)
+        date_range_layout.addStretch()
+
+        filter_layout.addLayout(date_range_layout, 1, 1, 1, 5)
+
+        # 查询/重置按钮 (垂直排列)
+        button_layout = QVBoxLayout()
+        button_layout.setSpacing(8)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+
         self.query_button = QPushButton("查询")
-        self.query_button.setStyleSheet("QPushButton { background-color: #1890ff; color: white; border: none; border-radius: 4px; padding: 4px 0; font-size: 14px; font-weight: 500; min-width: 70px; } QPushButton:hover { background-color: #40a9ff; } QPushButton:pressed { background-color: #096dd9; }")
-        self.query_button.setMinimumHeight(24)
+        self.query_button.setStyleSheet("""
+            QPushButton { 
+                background-color: #1890ff; 
+                color: white; 
+                border: none; 
+                border-radius: 4px; 
+                padding: 6px 12px; 
+                font-size: 14px; 
+                font-weight: 500; 
+                min-width: 80px;
+            } 
+            QPushButton:hover { 
+                background-color: #40a9ff; 
+            } 
+            QPushButton:pressed { 
+                background-color: #096dd9; 
+            }
+        """)
+        self.query_button.setFixedHeight(32)
+
         self.reset_button = QPushButton("重置")
-        self.reset_button.setStyleSheet("QPushButton { background-color: #ffffff; color: #606266; border: 1px solid #dcdfe6; border-radius: 4px; padding: 4px 0; font-size: 14px; min-width: 70px; } QPushButton:hover { background-color: #f4f4f5; color: #409eff; border-color: #c6e2ff; }")
-        self.reset_button.setMinimumHeight(24)
-        query_reset_layout.addWidget(self.query_button)
-        query_reset_layout.addWidget(self.reset_button)
-        filter_layout.addLayout(query_reset_layout, 0, 8, 2, 1)
+        self.reset_button.setStyleSheet("""
+            QPushButton { 
+                background-color: #ffffff; 
+                color: #606266; 
+                border: 1px solid #dcdfe6; 
+                border-radius: 4px; 
+                padding: 6px 12px; 
+                font-size: 14px; 
+                min-width: 80px;
+            } 
+            QPushButton:hover { 
+                background-color: #f4f4f5; 
+                color: #409eff; 
+                border-color: #c6e2ff; 
+            }
+        """)
+        self.reset_button.setFixedHeight(32)
+
+        button_layout.addWidget(self.query_button)
+        button_layout.addWidget(self.reset_button)
+        filter_layout.addLayout(button_layout, 0, 6, 2, 1)
+
         main_layout.addWidget(filter_frame)
-        # 表格区域（提升高度，合理分配列宽）
-        table_frame = QFrame()
-        table_frame.setStyleSheet("QFrame { background: #fff; border-radius: 8px; border: 1px solid #eaeaea; }")
-        table_layout = QVBoxLayout(table_frame)
-        table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(0)
-        self.dataset_table = QTableWidget()
-        self.dataset_table.setStyleSheet("QTableWidget { border: none; font-size: 14px; } QHeaderView::section { background: #fafafa; font-weight: 500; font-size: 14px; border: none; height: 36px; } QTableWidget::item { border-bottom: 1px solid #f0f0f0; }")
-        self.dataset_table.setMinimumHeight(420)
-        self.dataset_table.setMaximumHeight(500)
-        self.dataset_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        self.dataset_table.setColumnWidth(0, 90)
-        self.dataset_table.setColumnWidth(1, 120)
-        self.dataset_table.setColumnWidth(2, 90)
-        self.dataset_table.setColumnWidth(3, 70)
-        self.dataset_table.setColumnWidth(4, 90)
-        self.dataset_table.setColumnWidth(5, 120)
-        self.dataset_table.setColumnWidth(6, 120)
-        self.dataset_table.horizontalHeader().setDefaultAlignment(Qt.AlignCenter)
-        self.dataset_table.verticalHeader().setVisible(False)
-        self.dataset_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.dataset_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.dataset_table.setAlternatingRowColors(True)
-        table_layout.addWidget(self.dataset_table)
-        main_layout.addWidget(table_frame)
-        # 分页区域（减小高度，优化样式）
-        pagination_frame = QFrame()
-        pagination_frame.setStyleSheet("QFrame { background: transparent; border: none; }")
-        pagination_layout = QHBoxLayout(pagination_frame)
-        pagination_layout.setContentsMargins(0, 0, 0, 0)
-        pagination_layout.setSpacing(2)
-        self.prev_button = QPushButton("上一页")
-        self.prev_button.setStyleSheet("QPushButton { min-width: 54px; min-height: 22px; font-size: 13px; border-radius: 4px; background: #f5f5f5; border: 1px solid #e0e0e0; } QPushButton:disabled { color: #bbb; background: #fafafa; }")
-        self.next_button = QPushButton("下一页")
-        self.next_button.setStyleSheet("QPushButton { min-width: 54px; min-height: 22px; font-size: 13px; border-radius: 4px; background: #f5f5f5; border: 1px solid #e0e0e0; } QPushButton:disabled { color: #bbb; background: #fafafa; }")
-        self.page_combo = QComboBox()
-        self.page_combo.setStyleSheet("QComboBox { min-width: 54px; min-height: 22px; font-size: 13px; border-radius: 4px; background: #fff; border: 1px solid #e0e0e0; }")
-        self.page_size_combo = QComboBox()
-        self.page_size_combo.addItems(["10", "20", "50"])
-        self.page_size_combo.setStyleSheet("QComboBox { min-width: 54px; min-height: 22px; font-size: 13px; border-radius: 4px; background: #fff; border: 1px solid #e0e0e0; }")
-        pagination_layout.addWidget(self.prev_button)
-        pagination_layout.addWidget(self.page_combo)
-        pagination_layout.addWidget(self.next_button)
-        pagination_layout.addWidget(QLabel("每页显示"))
-        pagination_layout.addWidget(self.page_size_combo)
-        pagination_layout.addStretch()
-        main_layout.addWidget(pagination_frame)
 
         # 操作按钮区域 (新建/导出)
         action_button_layout = QHBoxLayout()
@@ -140,8 +259,8 @@ class DatasetView(QWidget):
                 background-color: #1890ff;
                 color: white;
                 border: none;
-                border-radius: 4px;
-                padding: 8px 16px;
+                border-radius: 6px;
+                padding: 6px 6px;
                 font-size: 14px;
                 font-weight: 500;
             }
@@ -152,8 +271,8 @@ class DatasetView(QWidget):
                 background-color: #096dd9;
             }
         """)
-        self.new_button.setFixedHeight(36)
-        self.new_button.setMinimumWidth(90)
+        self.new_button.setFixedHeight(32)
+        self.new_button.setMinimumWidth(80)
         
         self.export_button = QPushButton("导出")
         self.export_button.setStyleSheet("""
@@ -161,8 +280,8 @@ class DatasetView(QWidget):
                 background-color: #ffffff;
                 color: #606266;
                 border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 8px 16px;
+                border-radius: 6px;
+                padding: 6px 6px;
                 font-size: 14px;
             }
             QPushButton:hover {
@@ -171,26 +290,53 @@ class DatasetView(QWidget):
                 border-color: #c6e2ff;
             }
         """)
-        self.export_button.setFixedHeight(36)
-        self.export_button.setMinimumWidth(90)
+        self.export_button.setFixedHeight(32)
+        self.export_button.setMinimumWidth(80)
         
         action_button_layout.addWidget(self.new_button)
         action_button_layout.addWidget(self.export_button)
-
         action_button_layout.addStretch()
         main_layout.addLayout(action_button_layout)
 
-        # 数据集表格
+        # 表格区域
+        table_frame = QFrame()
+        table_frame.setStyleSheet("""
+            QFrame { 
+                background: transparent; 
+                border: none;
+                padding: 0;
+                max-height: 500px;
+            }
+        """)
+        table_layout = QVBoxLayout(table_frame)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+
+        # 创建表格
         self.dataset_table = QTableWidget()
-        # 更新列数和表头以匹配图片
-        self.dataset_table.setColumnCount(7) # 编号, 名称, 分类, 状态, 内容量, 时间, 操作
+        self.dataset_table.setColumnCount(7)  # 编号, 名称, 分类, 状态, 内容量, 时间, 操作
         self.dataset_table.setHorizontalHeaderLabels(["集合编号", "集合名称", "数据分类", "状态", "内容量", "时间", "操作"])
-        self.dataset_table.horizontalHeader().setStretchLastSection(True)
+
+        # 表格基本设置
+        self.dataset_table.setMinimumHeight(420)
+        self.dataset_table.setMaximumHeight(500)
+        self.dataset_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.dataset_table.verticalHeader().setVisible(False)
         self.dataset_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.dataset_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.dataset_table.setAlternatingRowColors(True)
-        self.dataset_table.verticalHeader().setVisible(False)  # 隐藏垂直表头
-        self.dataset_table.setShowGrid(True)  # 显示网格线
+        self.dataset_table.setSortingEnabled(True)
+
+        # 列宽设置
+        self.dataset_table.setColumnWidth(0, 100)  # 集合编号
+        self.dataset_table.setColumnWidth(1, 150)  # 集合名称
+        self.dataset_table.setColumnWidth(2, 100)  # 数据分类
+        self.dataset_table.setColumnWidth(3, 80)   # 状态
+        self.dataset_table.setColumnWidth(4, 100)  # 内容量
+        self.dataset_table.setColumnWidth(5, 150)  # 时间
+        self.dataset_table.setColumnWidth(6, 120)  # 操作
+
+        # 表格样式
         self.dataset_table.setStyleSheet("""
             QTableWidget {
                 border: 1px solid #ebeef5;
@@ -198,56 +344,134 @@ class DatasetView(QWidget):
                 background-color: #ffffff;
                 gridline-color: #ebeef5;
                 outline: none;
+                alternate-background-color: #fafafa;
             }
+            
+            /* 表头样式 */
             QHeaderView::section {
                 background-color: #f5f7fa;
-                padding: 10px 8px;
+                padding: 12px 8px;
                 border: none;
                 border-bottom: 1px solid #ebeef5;
                 border-right: 1px solid #ebeef5;
                 font-weight: 500;
                 font-size: 14px;
                 color: #606266;
-                text-align: left;
             }
+            
+            /* 表头最后一项特殊处理 */
+            QHeaderView::section:last {
+                border-right: none;
+            }
+            
+            /* 单元格样式 */
             QTableWidget::item {
                 padding: 12px 8px;
                 border-bottom: 1px solid #ebeef5;
                 font-size: 14px;
                 color: #606266;
             }
+            
+            /* 选中行样式 */
             QTableWidget::item:selected {
                 background-color: #ecf5ff;
                 color: #606266;
             }
-            QTableWidget::item:alternate {
-                background-color: #fafafa;
+            
+            /* 悬停行样式 */
+            QTableWidget::item:hover {
+                background-color: #f5f7fa;
+            }
+            
+            /* 操作列按钮样式 */
+            QPushButton {
+                min-width: 60px;
+                max-width: 60px;
+                padding: 6px 8px;
+                font-size: 12px;
+                border-radius: 4px;
+                margin: 2px;
+            }
+            
+            /* 滚动条样式 */
+            QScrollBar:vertical {
+                border: none;
+                background: #f5f7fa;
+                width: 8px;
+                margin: 0px 0px 0px 0px;
+            }
+            
+            QScrollBar::handle:vertical {
+                background: #c0c4cc;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
             }
         """)
 
-        main_layout.addWidget(self.dataset_table)
+        # 设置表头对齐方式
+        for i in range(self.dataset_table.columnCount()):
+            header_item = self.dataset_table.horizontalHeaderItem(i)
+            if i in [4, 5]:  # 内容量和时间列居中
+                header_item.setTextAlignment(Qt.AlignCenter)
+            else:
+                header_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
-        # 分页控件区域
-        pagination_layout = QHBoxLayout()
-        pagination_layout.setContentsMargins(0, 15, 0, 0)  # 增加上边距
-        
+        table_layout.addWidget(self.dataset_table)
+        main_layout.addWidget(table_frame)
+
+       # 分页控件区域
+        pagination_frame = QFrame()
+        pagination_frame.setStyleSheet("""
+            QFrame { 
+                background: #ffffff; 
+                border-radius: 6px; 
+                border: 1px solid #eaeaea;
+                padding: 0;
+                max-height: 36px;
+                margin: 0;
+            }
+        """)
+        pagination_layout = QHBoxLayout(pagination_frame)
+        pagination_layout.setContentsMargins(12, 4, 12, 4)  # 调整边距
+        pagination_layout.setSpacing(8)  # 控件间距
+
+        # 总条数标签
         self.total_items_label = QLabel("共 0 条")
-        self.total_items_label.setStyleSheet("font-size: 14px; color: #606266;")
-        
+        self.total_items_label.setStyleSheet("""
+            QLabel {
+                font-size: 14px; 
+                border: none;
+                color: #333333; 
+                padding: 0 ;
+                min-width: 80px;
+            }
+        """)
+        pagination_layout.addWidget(self.total_items_label)
+
+        # 上一页按钮
         self.prev_button = QPushButton("<")
         self.prev_button.setStyleSheet("""
             QPushButton {
-                background-color: #ffffff;
-                color: #606266;
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 6px 10px;
-                font-size: 14px;
-                min-width: 32px;
+                background-color: transparent;
+                color: #333333;
+                border:none;
+                padding: 0;
+                margin: 0;
+                font-size: 16px; 
+                min-width: 24px;
+                min-height: 24px;
             }
             QPushButton:hover {
                 color: #409eff;
                 border-color: #c6e2ff;
+                background-color: #f5f9ff;
+            }
+            QPushButton:pressed {
+                background-color: #ecf5ff;
             }
             QPushButton:disabled {
                 color: #c0c4cc;
@@ -255,17 +479,22 @@ class DatasetView(QWidget):
                 border-color: #e4e7ed;
             }
         """)
-        
-        self.page_combo = QComboBox()  # 用于显示和选择页码
+        self.prev_button.setCursor(Qt.PointingHandCursor)
+        pagination_layout.addWidget(self.prev_button)
+
+        # 页码选择器
+        self.page_combo = QComboBox()
         self.page_combo.setStyleSheet("""
             QComboBox {
                 border: 1px solid #dcdfe6;
                 border-radius: 4px;
-                padding: 6px 10px;
+                padding: 0 0 0 6px ;
                 background-color: #ffffff;
                 font-size: 14px;
                 color: #606266;
-                min-width: 60px;
+                min-width: 26px;
+                max-width: 80px;
+                min-height: 24px;
             }
             QComboBox:hover {
                 border-color: #c0c4cc;
@@ -273,64 +502,49 @@ class DatasetView(QWidget):
             QComboBox:focus {
                 border-color: #409eff;
             }
-        """)
-        
-        self.next_button = QPushButton(">")
-        self.next_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ffffff;
-                color: #606266;
+            QComboBox::drop-down {
+                width: 24px;
+                subcontrol-position: right center;     
+                background-color: transparent;
+                border-radius: 0 4px 0 4px;       
+            }
+            QComboBox::down-arrow {
+                image: url(utils/img/down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }
+            QComboBox QAbstractItemView {
                 border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 6px 10px;
-                font-size: 14px;
-                min-width: 32px;
-            }
-            QPushButton:hover {
-                color: #409eff;
-                border-color: #c6e2ff;
-            }
-            QPushButton:disabled {
-                color: #c0c4cc;
-                background-color: #f4f4f5;
-                border-color: #e4e7ed;
+                selection-background-color: #f5f9ff;
+                selection-color: #409eff;
+                min-width: 80px;
             }
         """)
-        
-        self.page_size_combo = QComboBox()
-        self.page_size_combo.addItems(["10", "20", "50", "100"])
-        self.page_size_combo.setCurrentText("50")  # 默认每页显示50条
-        self.page_size_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 6px 10px;
-                background-color: #ffffff;
-                font-size: 14px;
-                color: #606266;
-                min-width: 60px;
-            }
-            QComboBox:hover {
-                border-color: #c0c4cc;
-            }
-            QComboBox:focus {
-                border-color: #409eff;
-            }
-        """)
-        
-        self.page_size_label = QLabel("条/页")
-        self.page_size_label.setStyleSheet("font-size: 14px; color: #606266;")
-
-        pagination_layout.addWidget(self.total_items_label)
-        pagination_layout.addStretch()
-        pagination_layout.addWidget(self.prev_button)
         pagination_layout.addWidget(self.page_combo)
+
+        # 下一页按钮
+        self.next_button = QPushButton(">")
+        self.next_button.setStyleSheet(self.prev_button.styleSheet())  # 复用样式
+        self.next_button.setCursor(Qt.PointingHandCursor)
         pagination_layout.addWidget(self.next_button)
-        pagination_layout.addStretch()
-        pagination_layout.addWidget(self.page_size_combo)
+
+        # 每页条数标签
+        self.page_size_label = QLabel("10 条/页")
+        self.page_size_label.setStyleSheet("""
+            QLabel {
+                font-size: 14px;
+                color: #333333;
+                padding: 0 80px 0 0;
+                margin: 0 80px 0 0;
+                text-align: center;
+                min-width: 80px;
+                border: none;
+            }
+        """)
         pagination_layout.addWidget(self.page_size_label)
 
-        main_layout.addLayout(pagination_layout)
+        pagination_layout.addStretch()
+        main_layout.addWidget(pagination_frame)
 
     def show_import_dialog(self):
         """显示导入数据集对话框"""
@@ -365,14 +579,11 @@ class DatasetView(QWidget):
             # 假设 dataset 是一个字典或对象，包含所需字段
             # 注意：字段名需要与 controller 和 model 对应
             self.dataset_table.setItem(row, 0, QTableWidgetItem(str(dataset.get("id", ""))))
-            self.dataset_table.setItem(row, 1, QTableWidgetItem(dataset.get("name", "")))
-            self.dataset_table.setItem(row, 2, QTableWidgetItem(dataset.get("category", ""))) # 需要模型返回分类名称
-            self.dataset_table.setItem(row, 3, QTableWidgetItem(dataset.get("status", "")))   # 需要模型返回状态名称
+            self.dataset_table.setItem(row, 1, QTableWidgetItem(dataset.get("dataset_name", "")))
+            self.dataset_table.setItem(row, 2, QTableWidgetItem(dataset.get("dataset_category", "")))
+            self.dataset_table.setItem(row, 3, QTableWidgetItem(dataset.get("status", "")))   
             self.dataset_table.setItem(row, 4, QTableWidgetItem(str(dataset.get("content_size", "")))) # 假设有内容量字段
-            # 格式化时间
-            created_at = dataset.get("created_at", None)
-            time_str = created_at.strftime("%Y-%m-%d %H:%M") if created_at else ""
-            self.dataset_table.setItem(row, 5, QTableWidgetItem(time_str))
+            self.dataset_table.setItem(row, 5, QTableWidgetItem(dataset.get("created_time", "")))
 
             # 操作列 (示例：添加修改和查看按钮)
             action_widget = QWidget()
@@ -412,8 +623,8 @@ class DatasetView(QWidget):
             """)   # 链接样式
             
             # TODO: 连接按钮信号到 controller 的槽函数
-            # modify_button.clicked.connect(lambda checked, r=row: self.controller.modify_item(r))
-            # view_button.clicked.connect(lambda checked, r=row: self.controller.view_item(r))
+            modify_button.clicked.connect(lambda checked, r=row: self.controller.modify_item(r))
+            view_button.clicked.connect(lambda checked, r=row: self.controller.view_item(r))
             
             action_layout.addWidget(modify_button)
             action_layout.addWidget(view_button)

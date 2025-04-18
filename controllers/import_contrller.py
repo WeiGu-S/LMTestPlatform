@@ -1,12 +1,9 @@
-from re import S
 from models.dataset_model import DatasetModel
 from utils.database import DatabaseManager
 from utils.logger import get_logger
 from PySide6.QtCore import QObject, Slot, QDate
 from datetime import datetime
-from views.dataset.import_dialog import ImportDialog
 
-logger = get_logger("dataset_controller")
 class DatasetController(QObject):
     def __init__(self, view):
         super().__init__()
@@ -29,14 +26,11 @@ class DatasetController(QObject):
         self.view.export_button.clicked.connect(self.export_data)
         self.view.prev_button.clicked.connect(self.prev_page)
         self.view.next_button.clicked.connect(self.next_page)
-        self.view.page_combo.currentIndexChanged.connect(self.go_to_specific_page)
         # 连接分页控件信号
         self.view.page_combo.currentIndexChanged.connect(self.go_to_page_from_combo)
         #self.view.page_size_combo.currentIndexChanged.connect(self.change_page_size)
         # TODO: 连接表格内操作按钮信号（需视图暴露或通过控制器传递）
         # 示例：self.view.dataset_table.cellWidget(row, 6).findChild(QPushButton, "modify_button").clicked.connect(...)
-        # 连接表格内操作按钮信号
-        self.view.dataset_table.cellWidget(row, 6).findChild(QPushButton, "modify_button").clicked.connect(self.modify_dataset)
 
     @Slot()
     def load_initial_data(self):
@@ -134,13 +128,15 @@ class DatasetController(QObject):
                     self.load_data()
             except ValueError:
                 self.logger.warning(f"选择了无效页码: {self.view.page_combo.itemText(index)}")
-    @Slot(int)
-    def go_to_specific_page(self, page_num):
-        """跳转到指定页（页码按钮点击）。"""
-        if page_num != self.current_page:
-            self.logger.info(f"跳转到第 {page_num} 页")
-            self.current_page = page_num
-            self.load_data()
+
+    # 如果需要通过页码按钮跳转，可以保留或添加此方法
+    # @Slot(int)
+    # def go_to_specific_page(self, page_num):
+    #     """跳转到指定页（页码按钮点击）。"""
+    #     if page_num != self.current_page:
+    #         self.logger.info(f"跳转到第 {page_num} 页")
+    #         self.current_page = page_num
+    #         self.load_data()
 
     # @Slot(int)
     # def change_page_size(self, index):
@@ -171,104 +167,21 @@ class DatasetController(QObject):
         
     def handle_dataset_confirm(self, dialog):
         """处理数据集对话框确认按钮点击"""
-        try:
-            if dialog.name_input.text().strip() == '':
-                self.logger.warning("数据集名称不能为空")
-                return
-            # 获取对话框中的数据
-            dataset_data = {
-                'dataset_name': dialog.name_input.text(),
-                'dataset_category': dialog.category_combo.currentText(),            
-                'status': dialog.status_combo.currentText() if hasattr(dialog, 'status_combo') else '启用',
-                'remark': dialog.desc_input.toPlainText()
-            }
-            
-            self.logger.info(f"创建新数据集: {dataset_data}")
-            # 调用模型创建数据集
-            with DatabaseManager.get_session() as session:
-                DatasetModel.add_dataset(session, dataset_data)
-        except Exception as e:
-            self.logger.error(f"创建数据集失败: {e}", exc_info=True)
-
+        # 获取对话框中的数据
+        dataset_data = {
+            'dataset_name': dialog.name_input.text(),
+            'dataset_category': dialog.category_combo.currentText(),
+            'status': dialog.status_combo.currentText() if hasattr(dialog, 'status_combo') else '启用',
+            'remark': dialog.desc_input.toPlainText()
+        }
+        
+        self.logger.info(f"创建新数据集: {dataset_data}")
+        # TODO: 调用模型创建数据集
+        # with DatabaseManager.get_session() as session:
+        #     DatasetModel.create_dataset(session, dataset_data)
         
         # 关闭对话框
         dialog.close()
         # 刷新数据列表
         self.load_data()
-    @Slot()    
-    def handle_dataset_cancel(self, dialog):
-        """处理数据集对话框取消按钮点击"""
-        self.logger.info("点击了取消按钮")
-        dialog.close()
 
-    @Slot()
-    def export_data(self):
-        """导出数据按钮点击槽函数（待实现）。"""
-        self.logger.info("点击了导出数据按钮（待实现）")
-        # 1. 获取当前筛选条件
-        filters = self.get_filters()
-        # 2. 弹出文件保存对话框 (可以使用 view 的 show_export_dialog)
-        # file_path = self.view.show_export_dialog()
-        # if file_path:
-        #    try:
-        #        with DatabaseManager.get_session() as session:
-        #            # 3. 调用 model 获取所有符合条件的数据（不分页）
-        #            all_data = Dataset.get_all_datasets(session, filters=filters)
-        #        # 4. 实现导出逻辑 (e.g., to CSV, Excel)
-        #        self.logger.info(f"准备导出 {len(all_data)} 条数据到 {file_path}")
-        #        # ... export logic ...
-        #    except Exception as e:
-        #        self.logger.error(f"导出数据时出错: {e}", exc_info=True)
-        #        # Show error message
-        #    finally:
-        #        DatabaseManager.remove_session()
-        #    # ... export logic ...
-        pass
-
-    # --- 新增：处理表格内按钮点击 --- (需要 view 配合传递信号或行号)
-    @Slot(int)
-    def modify_item(self, row_index):
-        """处理修改按钮点击 (示例)"""
-        dataset_id = self.view.dataset_table.item(row_index, 0).text() # 获取ID
-        self.logger.info(f"请求修改行 {row_index}, ID: {dataset_id} (待实现)")
-        # 弹出编辑对话框，加载对应 ID 的数据
-        # ... dialog logic ...
-        # if dialog.exec():
-        #    # ... update model ...
-        #    self.load_data() # 刷新
-
-    @Slot(int)
-    def view_item(self, row_index):
-        """处理查看按钮点击 (示例)"""
-        dataset_id = self.view.dataset_table.item(row_index, 0).text() # 获取ID
-        self.logger.info(f"请求查看行 {row_index}, ID: {dataset_id} (待实现)")
-        # 弹出只读详情对话框或导航到详情页
-        # ... view/dialog logic ...
-
-    @Slot(int)
-    def import_item(self, row_index):
-        """处理导入按钮点击 (示例)"""
-        dataset_id = self.view.dataset_table.item(row_index, 0).text() # 获取ID
-        self.logger.info(f"请求导入行 {row_index}, ID: {dataset_id} (待实现)")
-        # 弹出导入对话框
-        import_dialog = ImportDialog(self.view, dataset_id)
-        import_dialog.exec()
-    @Slot(int)
-    def delete_item(self, row_index):
-        """处理删除按钮点击 (示例)"""
-        dataset_id = self.view.dataset_table.item(row_index, 0).text() # 获取ID
-        self.logger.info(f"请求删除行 {row_index}, ID: {dataset_id} (待实现)")
-        # 弹出确认对话框
-        #... confirm dialog logic...
-        
-        if confirmed:
-           with DatabaseManager.get_session() as session:
-               # 调用模型删除数据
-               Dataset.delete_dataset(session, dataset_id)
-           self.load_data() # 刷新
-
-    # def close_app(self):
-    #     """应用关闭处理 - Session management is now handled per operation or via remove_session."""
-    #     self.logger.info("控制器清理")
-    #     DatabaseManager.remove_session() # Ensure session is removed if app closes unexpectedly
-        # self.view.close() # 通常由主应用循环处理

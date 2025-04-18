@@ -5,13 +5,15 @@ from datetime import datetime
 import enum
 import math
 from utils.logger import get_logger
+from datetime import datetime, timezone
+
 
 Base = declarative_base()
-logger = get_logger()
+logger = get_logger("dataset_model")
 
 class DatasetStatus(enum.Enum):
     ENABLED = "启用"
-    DISABLED = "禁用"
+    DISABLED = "停用"
 
 class DatasetCategory(enum.Enum):
     VIDEO = "视频"
@@ -28,7 +30,7 @@ class DatasetModel(Base):
     dataset_category = Column(SQLAlchemyEnum(DatasetCategory), nullable=False, default=DatasetCategory.VIDEO, index=True, comment='数据集类型')
     status = Column(SQLAlchemyEnum(DatasetStatus), nullable=False, default=DatasetStatus.ENABLED, index=True, comment='状态')
     content_size = Column(Integer, nullable=False, default=0, comment='包含的问题数量，默认0')
-    description = Column(String(255), nullable=True, comment='数据集描述')
+    remark = Column(String(255), nullable=True, comment='备注')
     created_time = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
     updated_time = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment='最后更新时间')
     def to_dict(self):
@@ -39,6 +41,7 @@ class DatasetModel(Base):
             "dataset_category": self.dataset_category.value if isinstance(self.dataset_category, DatasetCategory) else self.dataset_category, # 返回枚举值
             "status": self.status.value if isinstance(self.status, DatasetStatus) else self.status, # 返回枚举值
             "content_size": self.content_size,
+            "remark": self.remark,
             "created_time": self.created_time.strftime('%Y-%m-%d %H:%M:%S') if self.created_time else None # 格式化时间
         }
 
@@ -118,20 +121,55 @@ class DatasetModel(Base):
             session.rollback()
             return []
 
+    
     @classmethod
-    def add_dataset(cls, session, dataset_name, dataset_category, status, content_size):
+    def add_dataset(cls, session, dataset_data):
+        """添加新数据集"""        
+        dataset_name = dataset_data.get('dataset_name')
+        dataset_category = DatasetCategory(dataset_data.get('dataset_category'))
+        status = DatasetStatus(dataset_data.get('status'))
+        remark = dataset_data.get('remark')
+        # 校验数据集名称是否已存在且未删除
         try:
-            new_dataset = Dataset(
+            existing_dataset = session.query(cls).filter(
+                (cls.dataset_name == dataset_name) & (cls.status != -1)
+            ).first()
+            if existing_dataset:
+                logger.warning(f"数据集名称已存在: {dataset_name}")
+                return None
+        except Exception as e:
+            logger.error(f"查询数据集时出错 (数据集名称: {dataset_name}): {e}", exc_info=True)
+            return None
+    
+        # 创建新数据集
+        try:
+            new_dataset = DatasetModel(
                 dataset_name=dataset_name,
-                dataset_category=DatasetCategory(dataset_category),
-                status=DatasetStatus(status),
-                content_size=content_size
+                dataset_category=dataset_category,
+                status=status,
+                content_size=0,
+                remark=remark,
+                created_time=datetime.now(timezone.utc)  # 显式指定时区
             )
             session.add(new_dataset)
             session.commit()
-            logger.info(f"已添加数据集: {dataset_name}")
+            logger.info(f"已成功添加数据集 (名称: {dataset_name}, 类别: {dataset_category})")
             return new_dataset
+        except ValueError as ve:
+            logger.error(f"无效的类别或状态值 (数据集名称: {dataset_name}, 类别: {dataset_category}, 状态: {status}): {ve}")
+            session.rollback()
+            return None
         except Exception as e:
-            logger.error(f"添加数据集时出错: {e}", exc_info=True)
+            logger.error(f"添加数据集时出错 (数据集名称: {dataset_name}): {e}", exc_info=True)
+            session.rollback()
+            return None
+    
+    def get_dataset_by_id(cls, session, dataset_id):
+        """根据ID获取数据集"""
+        try:
+            dataset = session.query(cls).filter(cls.id == dataset_id).first()
+            return dataset
+        except Exception as e:
+            logger.error(f"获取数据集时出错 (ID: {dataset_id}): {e}", exc_info=True)
             session.rollback()
             return None

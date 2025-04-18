@@ -49,8 +49,9 @@ def main():
     dataset_view = DatasetView() # 创建数据集页面
 
     # 添加页面到主窗口
-    main_window.add_page(home_view, "首页")
     main_window.add_page(dataset_view, "数据集管理")
+    main_window.add_page(home_view, "首页")
+
 
     # 创建主控制器，负责主窗口页面切换
     main_controller = MainController(main_window)
