@@ -4,6 +4,7 @@ from utils.logger import get_logger
 from views.dataset.dataset_view import DatasetView
 from models.dataset_model import DatasetModel, DatasetStatus
 from datetime import datetime, timezone, timedelta
+from views.dataset.dataset_dialog import DatasetDialog
 
 logger = get_logger("dataset_controller")
 
@@ -29,7 +30,6 @@ class DatasetController(QObject):
         self.view.view_signal.connect(self.handle_view)
         self.view.import_signal.connect(self.handle_import)
         self.view.delete_signal.connect(self.handle_delete)
-
 
     @Slot()
     def load_initial_data(self):
@@ -80,21 +80,20 @@ class DatasetController(QObject):
     @Slot()
     def show_inset_dialog(self):
         """处理新建数据集请求"""
-        from views.dataset.dataset_dialog import DatasetDialog
         dialog = DatasetDialog(self.view,mode="insert")
-        dialog.confirm_signal.connect(self.handle_dataset_operation)
+        dialog.confirmed.connect(self.handle_dataset_operation)
         dialog.exec()
 
     @Slot(str)
     def show_modify_dialog(self,dataset_id):
         """处理修改请求"""
-        from views.dataset.dataset_dialog import DatasetDialog
+        print("dataset_id",dataset_id)
         try:
             with DatabaseManager.get_session() as session:
-                dataset = DatasetModel.get_dataset_by_id(session, dataset_id)
+                dataset = DatasetModel.get_dataset_by_id(DatasetModel,session, dataset_id)
                 if dataset:
                     dialog = DatasetDialog(self.view, dataset = dataset, mode="modify")
-                    dialog.confirm_signal.connect(self.handle_dataset_operation)
+                    dialog.confirmed.connect(self.handle_dataset_operation)
                     dialog.exec()
                 else:
                     self.logger.warning(f"数据集 {dataset_id} 不存在")

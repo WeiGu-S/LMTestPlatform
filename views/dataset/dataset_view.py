@@ -379,7 +379,7 @@ class DatasetView(QWidget):
             self.dataset_table.setItem(row, 5, time_item)
 
             # 添加操作按钮
-            self.add_action_buttons(row, dataset.get("id", ""))
+            self.add_action_buttons(row, str(dataset.get("id", "")))
 
         # 更新分页信息
         self.update_pagination(total_items, current_page, total_pages)
