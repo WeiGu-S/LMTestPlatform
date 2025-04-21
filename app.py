@@ -11,7 +11,7 @@ from models.dataset_model import Base
 from utils.logger import setup_logging, get_logger
 
 setup_logging()
-logger = get_logger()
+logger = get_logger("app")
 
 def initialize_database():
     """初始化数据库引擎并创建表（如不存在）"""
@@ -59,8 +59,6 @@ def main():
     # 创建数据集控制器，负责数据集页面逻辑
     dataset_controller = DatasetController(dataset_view) # 实例化控制器
 
-    # 如需在视图内连接信号，可赋值控制器
-    # dataset_view.set_controller(dataset_controller) # 需在 DatasetView 中添加 set_controller 方法
 
     # 显示主窗口
     main_window.show()

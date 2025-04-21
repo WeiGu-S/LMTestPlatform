@@ -5,7 +5,8 @@ from datetime import datetime
 import enum
 import math
 from utils.logger import get_logger
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from views.dataset.dataset_view import DatasetView
 
 
 Base = declarative_base()
@@ -31,6 +32,7 @@ class DatasetModel(Base):
     status = Column(SQLAlchemyEnum(DatasetStatus), nullable=False, default=DatasetStatus.ENABLED, index=True, comment='状态')
     content_size = Column(Integer, nullable=False, default=0, comment='包含的问题数量，默认0')
     remark = Column(String(255), nullable=True, comment='备注')
+    del_flag = Column(Integer, nullable=False, default=0, comment='删除标记，0未删除，1已删除')
     created_time = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
     updated_time = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment='最后更新时间')
     def to_dict(self):
@@ -42,6 +44,7 @@ class DatasetModel(Base):
             "status": self.status.value if isinstance(self.status, DatasetStatus) else self.status, # 返回枚举值
             "content_size": self.content_size,
             "remark": self.remark,
+            "del_flag": self.del_flag,
             "created_time": self.created_time.strftime('%Y-%m-%d %H:%M:%S') if self.created_time else None # 格式化时间
         }
 
@@ -129,18 +132,23 @@ class DatasetModel(Base):
         dataset_category = DatasetCategory(dataset_data.get('dataset_category'))
         status = DatasetStatus(dataset_data.get('status'))
         remark = dataset_data.get('remark')
-        # 校验数据集名称是否已存在且未删除
+        
+        # 校验数据集名称是否已存在且未删除且非空
+        if not dataset_name:
+            logger.error("数据集名称不能为空")
+            return None
         try:
             existing_dataset = session.query(cls).filter(
-                (cls.dataset_name == dataset_name) & (cls.status != -1)
+                cls.dataset_name == dataset_name,
+                cls.del_flag == 0
             ).first()
             if existing_dataset:
-                logger.warning(f"数据集名称已存在: {dataset_name}")
+                logger.error(f"数据集名称已存在: {dataset_name}")
                 return None
         except Exception as e:
             logger.error(f"查询数据集时出错 (数据集名称: {dataset_name}): {e}", exc_info=True)
-            return None
-    
+            session.rollback()
+            return None    
         # 创建新数据集
         try:
             new_dataset = DatasetModel(
@@ -149,7 +157,8 @@ class DatasetModel(Base):
                 status=status,
                 content_size=0,
                 remark=remark,
-                created_time=datetime.now(timezone.utc)  # 显式指定时区
+                del_flag=0,
+                created_time=datetime.now(timezone(timedelta(hours=8)))  # 设置为中国时区(UTC+8)
             )
             session.add(new_dataset)
             session.commit()
@@ -173,3 +182,48 @@ class DatasetModel(Base):
             logger.error(f"获取数据集时出错 (ID: {dataset_id}): {e}", exc_info=True)
             session.rollback()
             return None
+
+    def get_datasetid_by_name(cls, session, dataset_name):
+        """根据名称获取数据集ID"""
+        try:
+            dataset = session.query(cls).filter(cls.name == dataset_name).first()
+            return dataset.id if dataset else None
+        except Exception as e:
+            logger.error(f"获取数据集ID时出错 (名称: {dataset_name}): {e}", exc_info=True)
+            session.rollback()
+            return None
+
+    def delete_dataset(cls, session, dataset_id):
+        """删除数据集"""
+        try:
+            dataset = session.query(cls).filter(cls.id == dataset_id).first()
+            if dataset:
+                dataset.del_flag = 1
+                session.commit()
+                logger.info(f"已成功删除数据集 (ID: {dataset_id})")
+                return True
+            else:
+                logger.warning(f"数据集不存在 (ID: {dataset_id})")
+                return False
+        except Exception as e:
+            logger.error(f"删除数据集时出错 (ID: {dataset_id}): {e}", exc_info=True)
+            session.rollback()
+            return False
+
+
+    def update_dataset(cls, session, dataset_id, dataset_data):
+        """更新数据集"""    
+        if dataset_data.get('dataset_name'):
+            # 校验数据集名称是否已存在且未删除且非空
+            try:
+                existing_dataset = session.query(cls).filter(
+                    cls.dataset_name == dataset_data.get('dataset_name'),
+                    cls.del_flag == 0
+                ).first()
+                if existing_dataset and existing_dataset.id != dataset_id:
+                    logger.error(f"数据集名称已存在: {dataset_data.get('dataset_name')}")
+                    return False
+            except Exception as e:
+                logger.error(f"查询数据集时出错 (数据集名称: {dataset_data.get('dataset_name')}): {e}", exc_info=True)
+                session.rollback()
+                return False
