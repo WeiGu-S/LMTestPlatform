@@ -195,7 +195,7 @@ class DatasetView(QWidget):
                 border: 1px solid #dcdfe6;
                 border-radius: 4px;
                 padding: 6px 12px 6px 8px;
-                min-width: 80px;
+                min-width: 100px;
             }
             QDateEdit:hover {
                 border-color: #c0c4cc;
@@ -469,7 +469,7 @@ class DatasetView(QWidget):
 
         # 总条数
         self.total_label = QLabel("共 0 条")
-        self.total_label.setStyleSheet("font-size: 14px; color: #666;")
+        self.total_label.setStyleSheet("font-size: 14px; color: #666;border: none;")
 
         # 分页控件
         self.prev_btn = QPushButton("上一页")
@@ -504,16 +504,35 @@ class DatasetView(QWidget):
                 padding: 6px;
                 min-width: 80px;
             }
+            QComboBox:hover {
+                border-color: #c0c4cc;
+            }
+            QComboxBox:focus {
+                border-color: #1890ff;
+                box-shadow: 0 0 3px rgba(24, 144, 255, 0.3);
+            }
+            QComboBox:on {
+                background: #f5f5f5;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 20px;
+                border: none;
+            }
         """)
+
+        self.page_szie = QLabel("每页 10 条")
+        self.page_szie.setStyleSheet(self.total_label.styleSheet()  )
 
         pagination_layout.addWidget(self.total_label)
         pagination_layout.addStretch()
         pagination_layout.addWidget(self.prev_btn)
         pagination_layout.addWidget(self.page_combo)
         pagination_layout.addWidget(self.next_btn)
-        pagination_layout.addWidget(QLabel("每页 10 条"))
-        # pagination_layout.addWidget(self.page_size_combo)
-        # pagination_layout.addWidget(QLabel("条"))
+        pagination_layout.addStretch()
+        pagination_layout.addWidget(self.page_szie)
+
 
         parent_layout.addWidget(pagination_frame)
 
