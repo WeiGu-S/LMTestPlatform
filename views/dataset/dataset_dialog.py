@@ -1,3 +1,4 @@
+from typing import override
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QLineEdit, QComboBox, QTextEdit, QFrame,
@@ -8,13 +9,13 @@ from PySide6.QtGui import QCursor
 from utils.logger import get_logger
 from models.dataset_model import DatasetModel, DatasetStatus, DatasetCategory
 from utils.database import DatabaseManager
+import enum
 
 logger = get_logger("dataset_dialog")
 
 class DatasetDialog(QDialog):
 
     confirmed = Signal(dict)
-    cancel_signal = Signal()
     def __init__(self, parent=None, dataset=None, mode="insert"):
         super().__init__(parent)
         self.dataset = dataset
@@ -135,6 +136,57 @@ class DatasetDialog(QDialog):
         
         parent_layout.addLayout(button_layout)
 
+    def setup_connections(self):
+        """连接信号与槽"""
+        # self.cancel_btn.clicked.connect(self.cancel_signal.emit)
+        self.cancel_btn.clicked.connect(self.reject)
+        self.confirm_btn.clicked.connect(self.emit_confirmed)
+
+    def emit_confirmed(self):
+        """发射确认信号"""
+        form_data = self.get_form_data()
+        form_data["mode"] = self.mode
+        if self.mode == 'modify' and self.dataset: # Check if dataset exists for modify mode
+            form_data["dataset_id"] = self.dataset.id
+
+        self.confirmed.emit(form_data)
+        self.accept()
+
+    def fill_data(self):
+        """填充数据集数据"""
+        if not self.dataset: # Add a check if dataset is None
+            return
+        self.setWindowTitle("修改数据集")
+        self.name_input.setText(self.dataset.dataset_name or '')
+        
+        # Handle potential Enum type for category and status
+        category_value = self.dataset.dataset_category.value if isinstance(self.dataset.dataset_category, enum.Enum) else self.dataset.dataset_category
+        category_index = self.category_combo.findText(category_value or '')
+        if category_index >= 0:
+            self.category_combo.setCurrentIndex(category_index)
+            
+        status_value = self.dataset.status.value if isinstance(self.dataset.status, enum.Enum) else self.dataset.status
+        status_index = self.status_combo.findText(status_value or '')
+        if status_index >= 0:
+            self.status_combo.setCurrentIndex(status_index)
+            
+        self.remark_input.setText(self.dataset.remark or '')
+        self.name_input.setFocus()
+
+    def get_form_data(self):
+        """获取表单数据"""
+        return {
+            'dataset_name': self.name_input.text(),
+            'dataset_category': self.category_combo.currentText(),
+            'status': self.status_combo.currentText(),
+            'remark': self.remark_input.toPlainText()
+        }
+
+    def set_form_data(self, dataset):
+        """设置表单数据"""
+        self.dataset = dataset
+        self.fill_data()
+
     def setup_style(self):
         """设置样式表"""
         self.setStyleSheet("""
@@ -222,50 +274,3 @@ class DatasetDialog(QDialog):
         # 设置鼠标悬停样式
         self.confirm_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
-
-    def setup_connections(self):
-        """连接信号与槽"""
-        self.cancel_btn.clicked.connect(self.cancel_signal.emit)
-        self.confirm_btn.clicked.connect(self.emit_confirmed)
-
-    def emit_confirmed(self):
-        """发射确认信号"""
-        form_data = self.get_form_data()
-        form_data["mode"] = self.mode
-        if self.mode == 'edit':
-            form_data["dataset_id"] = self.dataset.get('id')
-
-        self.confirmed.emit(form_data)
-        self.accept()
-
-    def fill_data(self):
-        """填充数据集数据"""
-        self.setWindowTitle("修改数据集")
-        self.name_input.setText(self.dataset.get('dataset_name', ''))
-        
-        category_index = self.category_combo.findText(
-            self.dataset.get('dataset_category', ''))
-        if category_index >= 0:
-            self.category_combo.setCurrentIndex(category_index)
-            
-        status_index = self.status_combo.findText(
-            self.dataset.get('status', ''))
-        if status_index >= 0:
-            self.status_combo.setCurrentIndex(status_index)
-            
-        self.remark_input.setText(self.dataset.get('remark', ''))
-        self.name_input.setFocus()
-
-    def get_form_data(self):
-        """获取表单数据"""
-        return {
-            'dataset_name': self.name_input.text(),
-            'dataset_category': self.category_combo.currentText(),
-            'status': self.status_combo.currentText(),
-            'remark': self.remark_input.toPlainText()
-        }
-
-    def set_form_data(self, dataset):
-        """设置表单数据"""
-        self.dataset = dataset
-        self.fill_data()

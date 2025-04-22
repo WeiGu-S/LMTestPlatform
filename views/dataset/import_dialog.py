@@ -47,7 +47,8 @@ class ImportDialog(QDialog):
         name_label.setStyleSheet("QLabel { font-size: 14px; color: #333333; }")
         self.name_input = QLineEdit()
         session = DatabaseManager.get_session()
-        dataset_name = DatasetModel.get_dataset_by_id(session, self.dataset_id).get('name')
+        dataset = DatasetModel.get_dataset_by_id(session, self.dataset_id)
+        dataset_name = dataset.dataset_name if dataset else "Unknown Dataset"
         self.name_input.setText(dataset_name)
         self.name_input.setStyleSheet("""
             QLineEdit {

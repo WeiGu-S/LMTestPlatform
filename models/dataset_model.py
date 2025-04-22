@@ -6,7 +6,7 @@ import enum
 import math
 from utils.logger import get_logger
 from datetime import datetime, timezone, timedelta
-from views.dataset.dataset_view import DatasetView
+# from views.dataset.dataset_view import DatasetView
 
 
 Base = declarative_base()
@@ -50,30 +50,56 @@ class DatasetModel(Base):
 
     @classmethod
     def _apply_filters(cls, query, filters):
-        """Applies filtering conditions to the query based on the filters dictionary."""
+        """安全地应用过滤条件到查询，兼容QDate类型"""
         if not filters:
-            return query
+            return query.filter(cls.del_flag == 0)
 
-        if filters.get('dataset_name'):
-            query = query.filter(cls.dataset_name.ilike(f"%{filters['dataset_name']}%"))
-        if filters.get('status') and filters['status'] != '全部':
-            try:
-                status_enum = DatasetStatus(filters['status'])
-                query = query.filter(cls.status == status_enum)
-            except ValueError:
-                logger.warning(f"无效的状态过滤值: {filters['status']}")
-        if filters.get('dataset_category') and filters['dataset_category'] != '全部':
-            try:
-                category_enum = DatasetCategory(filters['dataset_category'])
-                query = query.filter(cls.dataset_category == category_enum)
-            except ValueError:
-                logger.warning(f"无效的类别过滤值: {filters['dataset_category']}")
-        if filters.get('start_date'):
-            query = query.filter(cls.created_time >= filters['start_date'])
-        if filters.get('end_date'):
-            from datetime import timedelta
-            end_date_inclusive = filters['end_date'] + timedelta(days=1)
-            query = query.filter(cls.created_time < end_date_inclusive)
+        logger.debug(f"Applying filters: {str(filters)}")
+
+        try:
+            # 过滤已删除的数据集
+            query = query.filter(cls.del_flag == 0)
+            # 名称过滤
+            if filters.get('dataset_name'):
+                search_term = f"%{str(filters['dataset_name']).strip()}%"
+                query = query.filter(cls.dataset_name.ilike(search_term))
+
+            # 状态过滤
+            if filters.get('status') and filters['status'] != '全部':
+                status_map = {s.value: s for s in DatasetStatus}
+                if str(filters['status']) in status_map:
+                    query = query.filter(cls.status == status_map[str(filters['status'])])
+                else:
+                    logger.warning(f"Invalid status value: {filters['status']}")
+
+            # 分类过滤
+            if filters.get('dataset_category') and filters['dataset_category'] != '全部':
+                category_map = {c.value: c for c in DatasetCategory}
+                if str(filters['dataset_category']) in category_map:
+                    query = query.filter(cls.dataset_category == category_map[str(filters['dataset_category'])])
+                else:
+                    logger.warning(f"Invalid category value: {filters['dataset_category']}")
+
+            # 日期处理（兼容QDate和date类型）
+            if filters.get('start_date'):
+                start_date = filters['start_date']
+                if hasattr(start_date, 'toPython'):  # 处理QDate类型
+                    start_date = start_date.toPython()
+                query = query.filter(cls.created_time >= start_date)
+            
+            if filters.get('end_date'):
+                end_date = filters['end_date']
+                if hasattr(end_date, 'toPython'):  # 处理QDate类型
+                    end_date = end_date.toPython()
+                
+                from datetime import datetime, time
+                end_of_day = datetime.combine(end_date, time.max)
+                query = query.filter(cls.created_time <= end_of_day)
+
+        except Exception as e:
+            logger.error(f"Filter application error: {str(e)}", exc_info=True)
+            raise ValueError("Filter processing failed") from e
+
         return query
 
     @classmethod
@@ -113,7 +139,7 @@ class DatasetModel(Base):
             logger.error("获取所有数据集时数据库会话不可用")
             return []
 
-        query = session.query(cls)
+        query = session.query(cls.del_flag == 0)
         query = cls._apply_filters(query, filters)
 
         try:
@@ -173,6 +199,7 @@ class DatasetModel(Base):
             session.rollback()
             return None
     
+    @classmethod
     def get_dataset_by_id(cls, session, dataset_id):
         """根据ID获取数据集"""
         try:
@@ -182,7 +209,7 @@ class DatasetModel(Base):
             logger.error(f"获取数据集时出错 (ID: {dataset_id}): {e}", exc_info=True)
             session.rollback()
             return None
-
+    @classmethod
     def get_datasetid_by_name(cls, session, dataset_name):
         """根据名称获取数据集ID"""
         try:
@@ -193,6 +220,7 @@ class DatasetModel(Base):
             session.rollback()
             return None
 
+    @classmethod
     def delete_dataset(cls, session, dataset_id):
         """删除数据集"""
         try:
@@ -210,7 +238,7 @@ class DatasetModel(Base):
             session.rollback()
             return False
 
-
+    @classmethod
     def update_dataset(cls, session, dataset_id, dataset_data):
         """更新数据集"""    
         if dataset_data.get('dataset_name'):
