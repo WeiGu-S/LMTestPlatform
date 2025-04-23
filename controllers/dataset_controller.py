@@ -1,3 +1,5 @@
+from functools import partial
+from itertools import count
 from PySide6.QtCore import QObject, Slot
 from utils.database import DatabaseManager
 from utils.logger import get_logger
@@ -7,6 +9,8 @@ from datetime import datetime, timezone, timedelta
 from views.dataset.dataset_dialog import DatasetDialog
 from views.dataset.dataset_details_dialog import DatasetDetailsDialog
 from views.dataset.import_dialog import ImportDialog
+from models.dataset_son_model import DataModel
+from functools import partial
 
 
 logger = get_logger("dataset_controller")
@@ -28,7 +32,6 @@ class DatasetController(QObject):
         self.view.insert_signal.connect(self.show_dataset_dialog)
         self.view.export_signal.connect(self.handle_export)
         self.view.page_changed_signal.connect(self.handle_page_change)
-        self.view.page_size_changed_signal.connect(self.handle_page_size_change)
         self.view.edit_signal.connect(self.show_dataset_dialog)
         self.view.view_signal.connect(self.show_dataset_details_dialog)
         self.view.import_signal.connect(self.show_import_dialog)
@@ -161,18 +164,43 @@ class DatasetController(QObject):
         self.logger.info("导出功能待实现")
         self.view.show_message("提示", "导出功能暂未实现")
 
-
-    @Slot(str)
+    @Slot()
     def show_import_dialog(self, dataset_id):
         """处理导入请求"""
         dialog = ImportDialog(self.view, dataset_id)
-        dialog.import_confirmed.connect(self.import_data)
+        dialog.update_import_table()
+        dialog.import_confirmed.connect(lambda datas:self.import_data(dataset_id, datas))
         dialog.exec()
 
-    def import_data(self, dataset_id, file_path):
+    @Slot(int,list)
+    def import_data(self, dataset_id, datas):
         """导入数据"""
         # 实现导入逻辑
-        self.logger.info(f"导入数据到数据集 {dataset_id}，文件路径: {file_path}")
+        self.logger.info(f"导入数据到数据集 {dataset_id},datas : {datas}")
+        try:
+            with DatabaseManager.get_session() as session:
+                for data in datas:
+                    data['dataset_id'] = dataset_id
+                    data['title'] = data.get('title', '')
+                    data['tag'] = data.get('tag', '')
+                    data['answer'] = data.get('answer', '')
+                    DataModel.add_data(session, data, dataset_id)
+                    session.commit()
+                # 更新数据集的 content_size 字段
+                dataset = DatasetModel.get_dataset_by_id(session, dataset_id)
+                content_size = len(DataModel.get_all_data(session, dataset_id=dataset_id))                
+                dataset.content_size = content_size
+                session.commit()
+                self.view.show_message("提示", "数据导入成功")
+
+                self.load_data()
+                
+        except Exception as e:
+            self.logger.error(f"导入数据失败: {e}")
+            self.view.show_error("错误", "导入数据失败")
+        finally:
+            DatabaseManager.remove_session()
+
 
     @Slot(str)
     def handle_delete(self, dataset_id):
@@ -202,12 +230,4 @@ class DatasetController(QObject):
         """处理页码变化"""
         if page != self.current_page:
             self.current_page = page
-            self.load_data()
-
-    @Slot(int)
-    def handle_page_size_change(self, size):
-        """处理每页条数变化"""
-        if size != self.items_per_page:
-            self.items_per_page = size
-            self.current_page = 1
             self.load_data()

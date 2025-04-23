@@ -125,7 +125,7 @@ class DataModel(Base):
             logger.error("获取所有数据集时数据库会话不可用")
             return []
 
-        query = session.query(cls.del_flag == 0 and cls.dataset_id == dataset_id)
+        query = session.query(cls)
         query = cls._apply_filters(query, filters, dataset_id)
 
         try:
@@ -136,38 +136,20 @@ class DataModel(Base):
             session.rollback()
             return []
 
-    
     @classmethod
-    def add_dataset(cls, session, data, dataset_id):
+    def add_data(cls, session, datas, dataset_id):
         """添加新数据"""
-        title = data.get('title')
-        answer = data.get('answer')
-        status = DataStatus(data.get('status'))
-        tag = data.get('tag')
-        
-        # 校验数据集名称是否已存在且未删除且非空
-        if not title:
-            logger.error("数据集名称不能为空")
-            return None
-        try:
-            existing_data = session.query(cls).filter(
-                cls.title == title,
-                cls.del_flag == 0
-            ).first()
-            if existing_data:
-                logger.error(f"数据集名称已存在: {title}")
-                return None
-        except Exception as e:
-            logger.error(f"查询数据集时出错 (数据集名称: {title}): {e}", exc_info=True)
-            session.rollback()
-            return None    
+        title = datas.get('title')
+        answer = datas.get('answer')
+        tag = datas.get('tags')
+           
         # 创建新数据集
         try:
             new_data = DataModel(
                 dataset_id=dataset_id,
                 title=title,
                 answer=answer,
-                status=status,
+                status=DataStatus.ENABLED,
                 tag=tag,
                 del_flag=0,
                 created_time=datetime.now(timezone(timedelta(hours=8)))  # 设置为中国时区(UTC+8)
@@ -175,7 +157,7 @@ class DataModel(Base):
             session.add(new_data)
             session.commit()
             logger.info(f"已成功添加数据集 (名称: {title}, 类别: {answer})")
-            return new_dataset
+            return new_data
         except ValueError as ve:
             logger.error(f"无效的类别或状态值 (数据集名称: {title}, 类别: {answer}, 状态: {status}): {ve}")
             session.rollback()

@@ -251,6 +251,30 @@ class DatasetModel(Base):
                 if existing_dataset and existing_dataset.id != dataset_id:
                     logger.error(f"数据集名称已存在: {dataset_data.get('dataset_name')}")
                     return False
+                # 更新数据集
+                try:
+                    dataset = session.query(cls).filter(cls.id == dataset_id).first()
+                    if dataset:
+                        dataset.dataset_name = dataset_data.get('dataset_name')
+                        dataset.dataset_category = DatasetCategory(dataset_data.get('dataset_category'))
+                        dataset.status = DatasetStatus(dataset_data.get('status'))
+                        dataset.remark = dataset_data.get('remark')
+                        dataset.content_size = dataset_data.get('content_size')
+                        dataset.updated_time = datetime.now(timezone(timedelta(hours=8)))  # 设置为中国时区(UTC+8)
+                        session.commit()
+                        logger.info(f"已成功更新数据集 (ID: {dataset_id})")
+                        return True
+                    else:
+                        logger.warning(f"数据集不存在 (ID: {dataset_id})")
+                        return False
+                except ValueError as ve:
+                    logger.error(f"无效的类别或状态值 (数据集名称: {dataset_data.get('dataset_name')}, 类别: {dataset_data.get('dataset_category')}, 状态: {dataset_data.get('status')}): {ve}")
+                    session.rollback()
+                    return False
+                except Exception as e:
+                    logger.error(f"更新数据集时出错 (ID: {dataset_id}): {e}", exc_info=True)
+                    session.rollback()
+                    return False
             except Exception as e:
                 logger.error(f"查询数据集时出错 (数据集名称: {dataset_data.get('dataset_name')}): {e}", exc_info=True)
                 session.rollback()

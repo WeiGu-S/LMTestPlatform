@@ -23,7 +23,6 @@ class DatasetView(QWidget):
     insert_signal = Signal()         # 新建数据集信号
     export_signal = Signal()         # 导出数据信号
     page_changed_signal = Signal(int)    # 页码变化信号
-    page_size_changed_signal = Signal(int)  # 每页条数变化信号
     edit_signal = Signal(str)      # 修改数据集信号，传递ID
     view_signal = Signal(str)        # 查看数据集信号，传递ID
     import_signal = Signal(str)       # 导入数据信号，传递ID
@@ -328,7 +327,7 @@ class DatasetView(QWidget):
         parent_layout.addLayout(action_layout)
 
     def setup_table_area(self, parent_layout):
-        """优化后的表格区域样式"""
+        """表格区域样式"""
         # 表格容器
         table_frame = QFrame()
         table_frame.setObjectName("tableFrame")
