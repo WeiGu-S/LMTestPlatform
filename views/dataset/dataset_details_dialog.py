@@ -3,14 +3,19 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QGridLayout,QHBoxLayout, QT
                             QHeaderView, QFrame, QSpacerItem, QSizePolicy)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+from models import dataset_son_model
 from utils.logger import get_logger
 from models.dataset_model import DatasetCategory, DatasetModel, DatasetStatus
+from models.dataset_son_model import DataModel
+from utils.database import DatabaseManager
+
 logger = get_logger("dataset_details_dialog")
 class DatasetDetailsDialog(QDialog):
     def __init__(self, dataset, parent=None):
         super().__init__(parent)
         self.dataset = dataset
         self.init_ui()
+        # self.dataset_id = dataset.id
     def init_ui(self):
         """初始化UI"""
         self.setWindowTitle("数据集详情: " + self.dataset.dataset_name)
@@ -27,7 +32,6 @@ class DatasetDetailsDialog(QDialog):
                 border: 1px solid #CCCCCC;
                 background-color: white;
                 border-radius: 8px;
-                margin: 10px;
             }
             QTabBar::tab {
                 padding: 10px 25px;
@@ -42,6 +46,7 @@ class DatasetDetailsDialog(QDialog):
             QTabBar::tab:selected {
                 background-color: white;
                 font-weight: bold;
+                color: #007ACC;
             }
             QTableWidget {
                 border: 1px solid #CCCCCC;
@@ -83,7 +88,7 @@ class DatasetDetailsDialog(QDialog):
         
         # 创建表单容器（固定宽度+圆角阴影）
         form_container = QWidget()
-        form_container.setFixedWidth(650)  # 适当加宽容器
+        form_container.setFixedWidth(600)  # 适当加宽容器
         form_container.setStyleSheet("""
             background-color: white;
             border-radius: 12px;
@@ -98,7 +103,7 @@ class DatasetDetailsDialog(QDialog):
         form_layout.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
         
         # 统一字体配置
-        field_font = QFont("Microsoft YaHei", 15)  # 适当增大字体
+        field_font = QFont("Microsoft YaHei", 14)  # 适当增大字体
         label_style = """
             QLabel {
                 color: #424242;
@@ -172,7 +177,7 @@ class DatasetDetailsDialog(QDialog):
             h_layout.addWidget(value_widget)
             h_layout.addStretch()  # 右侧留白
             
-            # 添加到表单
+            # 添加到表单布局
             form_layout.addRow(label_widget, value_container)
         
         form_container.setLayout(form_layout)
@@ -188,79 +193,170 @@ class DatasetDetailsDialog(QDialog):
         """创建数据子项标签页"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(10, 10, 20, 10)  # 
 
         # 创建表格容器
         table_container = QWidget()
+        table_container.setMinimumSize(900, 400)
         table_container.setStyleSheet("""
             QWidget {
                 background-color: white;
                 border-radius: 12px;
-                padding: 20px;
-            }
-        """)
-        table_layout = QVBoxLayout(table_container)
-        table_layout.setContentsMargins(10, 10, 10, 10)
-
-        # 创建表格
-        table = QTableWidget()
-        table.setFont(QFont("Microsoft YaHei", 11))
-        table_layout.addWidget(table)
-
-        # 设置表格属性
-        headers = ["ID", "标题", "答案", "状态", "标签", "创建时间"]
-        table.setColumnCount(len(headers))
-        table.setHorizontalHeaderLabels(headers)
-        
-        # 设置表格列宽和样式
-        header = table.horizontalHeader()
-        header.setFont(QFont("Microsoft YaHei", 11, QFont.Bold))
-        header.setDefaultAlignment(Qt.AlignCenter)
-        
-        # 设置各列的宽度比例
-        width_ratios = [1, 2, 2, 1, 1, 1.5]
-        total_ratio = sum(width_ratios)
-        for i, ratio in enumerate(width_ratios):
-            header.setSectionResizeMode(i, QHeaderView.Fixed)
-            table.setColumnWidth(i, int(700 * ratio / total_ratio))
-
-        # 设置表格样式
-        table.setAlternatingRowColors(True)
-        table.setShowGrid(True)
-        table.setSelectionBehavior(QTableWidget.SelectRows)
-        table.verticalHeader().setVisible(False)
-        table.setStyleSheet("""
-            QTableWidget {
+                padding: 0;
                 border: none;
-                gridline-color: #E8E8E8;
-            }
-            QTableWidget::item {
-                padding: 12px;
-                border-bottom: 1px solid #E8E8E8;
-            }
-            QTableWidget::item:selected {
-                background-color: #E3F2FD;
-                color: #1976D2;
             }
         """)
 
-        # 填充数据
-        items = getattr(self.dataset, "items", [])
-        table.setRowCount(len(items))
+        table_layout = QVBoxLayout(table_container)
 
-        for row, item in enumerate(items):
-            columns = [
-                str(item.get("id", "")),
-                item.get("name", ""),
-                item.get("answer", ""),
-                item.get("status", ""),
-                item.get("tags", ""),
-                item.get("created_time", "")
-            ]
-            for col, value in enumerate(columns):
-                table_item = QTableWidgetItem(value)
-                table_item.setTextAlignment(Qt.AlignCenter)
-                table.setItem(row, col, table_item)
+        # 初始化表格
+        self.data_table = QTableWidget()
+        self.data_table.setObjectName("dataTable")
 
+        self.data_table.setFont(QFont("Microsoft YaHei", 14))
+        self.data_table.setAlternatingRowColors(True)
+        self.data_table.setColumnCount(6)
+
+        headers = ["序号", "标题", "答案", "状态", "标签", "创建时间"]
+        self.data_table.setHorizontalHeaderLabels(headers)
+        self.data_table.verticalHeader().setVisible(False)   # 隐藏垂直表头
+        self.data_table.setEditTriggers(QTableWidget.NoEditTriggers)  # 禁用编辑
+        self.data_table.setSelectionBehavior(QTableWidget.SelectRows)  # 整行选中
+        self.data_table.setSelectionMode(QTableWidget.SingleSelection)  # 单选
+        self.data_table.verticalHeader().setDefaultSectionSize(42)  # 行高
+
+        # 表头设置
+        header = self.data_table.horizontalHeader() 
+        header.setFont(QFont("Microsoft YaHei", 12, QFont.Medium))
+        header.setObjectName("tableHeader")
+
+        header.setStyleSheet("""
+            QHeaderView#tableHeader {
+                background-color: transparent;
+                border-top left right: 1px solid #e0e0e0;
+                border-radius: 8px;
+            }
+            QHeaderView#tableHeader::section {
+                background-color: #f5f5f5;
+                color: #333333;
+                border: none;
+                border-bottom: 2px solid #e0e0e0;
+                border-left: 1px solid #e0e0e0;
+                border-top: 1px solid #e0e0e0;
+                border-right: 1px solid #e0e0e0;
+                padding: 0;
+                font-family: "Microsoft YaHei";
+                font-size: 14pt;
+                font-weight: 500;
+                qproperty-alignment: AlignCenter;
+            }
+        """)
+
+        header.setStretchLastSection(False) 
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.Fixed)
+        header.setSectionResizeMode(3, QHeaderView.Fixed)
+        header.setSectionResizeMode(4, QHeaderView.Fixed)
+        header.setSectionResizeMode(5, QHeaderView.Fixed)
+
+        # 表格样式设置        
+        self.data_table.setStyleSheet("""
+            QTableWidget#dataTable {
+                background-color: #ffffff;
+                alternate-background-color: #fafafa;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                gridline-color: #f0f0f0;
+                selection-background-color: #e3f2fd;
+                selection-color: #1976d2;
+            }
+            QTableWidget#dataTable::item {
+                padding: 0;
+                border-bottom: 1px solid #f0f0f0;
+                border-left: 1px solid #f0f0f0;
+            }
+            QTableWidget#dataTable::item:selected {
+                background-color: #e3f2fd;
+                color: #1976d2;
+            }
+        """)
+
+        # 设置列宽
+        self.data_table.setColumnWidth(0, 40) # 序号列
+        self.data_table.setColumnWidth(1, 200)  # 标题列
+        self.data_table.setColumnWidth(2, 200)  # 答案列
+        self.data_table.setColumnWidth(3, 60)  # 状态列
+        self.data_table.setColumnWidth(4, 100)  # 标签列
+        self.data_table.setColumnWidth(5, 150)  # 创建时间列
+
+        table_layout.addWidget(self.data_table)
         layout.addWidget(table_container)
+
+        # 加载数据
+        self.update_tab_table()
+
         return tab
+
+    def update_tab_table(self, dataset=None, current_page=1, total_pages=1):
+        """更新数据子项表格（完整实现）"""
+        # 表格初始化检查
+        if not hasattr(self, 'data_table'):
+            logger.error("表格控件未初始化")
+            return
+
+        try:
+            # 清空现有数据
+            self.data_table.setRowCount(0)
+            with DatabaseManager.get_session() as session:
+                datas, total_items, total_pages = DataModel.get_paginated_data(
+                        session,
+                        dataset_id=self.dataset.id,
+                        page=current_page,
+                        per_page=10
+                    )
+            
+            # 处理空数据状态
+            if not datas:
+                self.data_table.setRowCount(1)
+                self.data_table.setSpan(0, 0, 1, self.data_table.columnCount())
+                no_data_item = QTableWidgetItem("暂无数据")
+                no_data_item.setFont(QFont("Microsoft YaHei", 12))
+                no_data_item.setTextAlignment(Qt.AlignCenter)
+                self.data_table.setItem(0, 0, no_data_item)
+                # self.update_pagination(0, 1, 1)
+                return
+
+            # 设置表格行数
+            self.data_table.setRowCount(len(datas))
+            # 填充数据行
+            for row, data in enumerate(datas):
+                # 填充各列数据
+                self.data_table.setItem(row, 0, QTableWidgetItem(str(row+1)))  # 序号
+                self.data_table.setItem(row, 1, QTableWidgetItem(data.get('title', '')))  # 标题
+                self.data_table.setItem(row, 2, QTableWidgetItem(data.get('answer', '')))  # 答案
+                
+                # 状态列（特殊居中处理）
+                status_item = QTableWidgetItem(data.get('status', ''))
+                self.data_table.setItem(row, 3, status_item)
+                
+                self.data_table.setItem(row, 4, QTableWidgetItem(data.get('tags', '')))  # 标签
+                
+                # 时间列（自动转为字符串）
+                time_str = str(data.get('created_time', ''))[:19]  # 截取到秒
+                self.data_table.setItem(row, 5, QTableWidgetItem(time_str))
+
+                # 添加操作按钮（如需）
+                # self._add_action_buttons(row_idx, str(item.get('id', '')))
+
+            # 更新分页控件
+            # actual_total = len(datasets) if datasets is not None else total_items
+            # self.update_pagination(actual_total, current_page, total_pages)
+
+        except Exception as e:
+            logger.error(f"更新表格失败: {str(e)}", exc_info=True)
+            self.data_table.setRowCount(0)
+            error_item = QTableWidgetItem("数据加载失败")
+            error_item.setTextAlignment(Qt.AlignCenter)
+            self.data_table.setItem(0, 0, error_item)
+

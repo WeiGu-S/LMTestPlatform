@@ -6,6 +6,7 @@ from models.dataset_model import DatasetModel, DatasetStatus
 from datetime import datetime, timezone, timedelta
 from views.dataset.dataset_dialog import DatasetDialog
 from views.dataset.dataset_details_dialog import DatasetDetailsDialog
+from views.dataset.import_dialog import ImportDialog
 
 
 logger = get_logger("dataset_controller")
@@ -30,7 +31,7 @@ class DatasetController(QObject):
         self.view.page_size_changed_signal.connect(self.handle_page_size_change)
         self.view.edit_signal.connect(self.show_dataset_dialog)
         self.view.view_signal.connect(self.show_dataset_details_dialog)
-        self.view.import_signal.connect(self.handle_import)
+        self.view.import_signal.connect(self.show_import_dialog)
         self.view.delete_signal.connect(self.handle_delete)
         self.view.delete_confirm_signal.connect(self.delete_dataset)
 
@@ -162,10 +163,16 @@ class DatasetController(QObject):
 
 
     @Slot(str)
-    def handle_import(self, dataset_id):
+    def show_import_dialog(self, dataset_id):
         """处理导入请求"""
-        self.logger.info(f"导入数据集 {dataset_id} 功能待实现")
-        self.view.show_message("提示", "导入功能暂未实现")
+        dialog = ImportDialog(self.view, dataset_id)
+        dialog.import_confirmed.connect(self.import_data)
+        dialog.exec()
+
+    def import_data(self, dataset_id, file_path):
+        """导入数据"""
+        # 实现导入逻辑
+        self.logger.info(f"导入数据到数据集 {dataset_id}，文件路径: {file_path}")
 
     @Slot(str)
     def handle_delete(self, dataset_id):

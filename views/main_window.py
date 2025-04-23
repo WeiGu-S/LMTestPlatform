@@ -8,7 +8,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("上研院 大模型测试平台")
-        self.setGeometry(100, 100, 1200, 800)   
+        self.setGeometry(100, 100, 1200, 880)   
         
         # 中央部件
         central_widget = QWidget()

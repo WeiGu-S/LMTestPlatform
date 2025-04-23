@@ -112,6 +112,7 @@ class DatasetView(QWidget):
         self.name_filter_input.setPlaceholderText("请输入集合名称")
         self.name_filter_input.setStyleSheet("""
             QLineEdit {
+                font-size: 14px;
                 border: 1px solid #dcdfe6;
                 border-radius: 4px;
                 padding: 8px;
@@ -143,9 +144,6 @@ class DatasetView(QWidget):
             QComboBox:hover {
                 border-color: #c0c4cc;
             }
-            QComboBox:focus {
-                border-color: #1890ff;
-                box-shadow: 0 0 3px rgba(24, 144, 255, 0.3);
             }
             QComboBox:on {
                 background: #f5f5f5;
@@ -200,10 +198,6 @@ class DatasetView(QWidget):
             QDateEdit:hover {
                 border-color: #c0c4cc;
             }
-            QDateEdit:focus {
-                border-color: #1890ff;
-                box-shadow: 0 0 3px rgba(24, 144, 255, 0.3);
-            }
             QDateEdit:on {
                 background: #f5f5f5;
             }
@@ -238,42 +232,39 @@ class DatasetView(QWidget):
         button_layout.setSpacing(8)
         button_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.query_button = QPushButton("查询")
+        self.query_button = QPushButton()
         self.query_button.setStyleSheet("""
             QPushButton {
-                background-color: #1890ff;
-                color: white;
+                background-color: transparent;
                 border: none;
-                border-radius: 4px;
-                padding: 8px;
-                min-width: 80px;
+                padding: 0;
+                height: 40px;
+                min-width: 60px;
+                image: url(utils/img/search.png);
             }
             QPushButton:hover {
-                background-color: #40a9ff;
+                cursor: pointer;
             }
             QPushButton:pressed {
-                background-color: #096dd9;
-                border-color: #096dd9;
+                padding: 4px;
             }
         """)
 
-        self.reset_button = QPushButton("重置")
+        self.reset_button = QPushButton()
         self.reset_button.setStyleSheet("""
             QPushButton {
-                background-color: #fff;
-                color: #666;
-                border: 1px solid #d9d9d9;
-                border-radius: 4px;
-                padding: 8px;
-                min-width: 80px;
+                background-color: transparent;
+                border: none;
+                padding: 0;
+                height: 40px;
+                min-width: 60px;
+                image: url(utils/img/reset.png);
             }
             QPushButton:hover {
-                color: #1890ff;
-                border-color: #1890ff;
+                cursor: pointer;
             }
             QPushButton:pressed {
-                background-color: #f5f5f5;
-                border-color: #d9d9d9;
+                padding: 4px;
             }
         """)
 
@@ -288,40 +279,45 @@ class DatasetView(QWidget):
         action_layout = QHBoxLayout()
         action_layout.setSpacing(8)
 
-        self.insert_button = QPushButton("+ 新建数据集")
+        self.insert_button = QPushButton()
         self.insert_button.setStyleSheet("""
             QPushButton {
-                background-color: #1890ff;
+                background-color: transparent;
                 color: white;
                 border: none;
                 border-radius: 4px;
-                padding: 8px 16px;
+                padding: 0;
+                image: url(utils/img/add.png);
+                min-width: 24px;
+                min-height: 24px;
             }
             QPushButton:hover {
-                background-color: #40a9ff;
+                cursor: pointer;
+                text-decoration: 新增数据集;
             }
             QPushButton:pressed {
-                background-color: #096dd9;
-                border-color: #096dd9;
+                padding: 4px;
             }
         """)
 
-        self.export_button = QPushButton("导出数据")
+        self.export_button = QPushButton()
         self.export_button.setStyleSheet("""
             QPushButton {
-                background-color: #fff;
+                background-color: transparent;
                 color: #666;
-                border: 1px solid #d9d9d9;
+                border: none;
                 border-radius: 4px;
-                padding: 8px 16px;
+                padding: 0;
+                image: url(utils/img/export.png);
+                min-width: 24px;
+                min-height: 24px;
             }
             QPushButton:hover {
-                color: #1890ff;
-                border-color: #1890ff;
+                cursor: pointer;
+                text-decoration: 导出数据;
             }
             QPushButton:pressed {
-                background-color: #f5f5f5;
-                border-color: #d9d9d9;
+                padding: 4px;
             }
         """)
 
@@ -426,7 +422,7 @@ class DatasetView(QWidget):
                 selection-color: #1976d2;
             }
             QTableWidget#dataTable::item {
-                padding: 10px 12px;
+                padding: 0;
                 border-bottom: 1px solid #f0f0f0;
                 border-left: 1px solid #f0f0f0;
             }
@@ -438,10 +434,10 @@ class DatasetView(QWidget):
 
         
         # 通用设置
-        self.dataset_table.setSelectionBehavior(QTableWidget.SelectRows) #
-        self.dataset_table.setEditTriggers(QTableWidget.NoEditTriggers) 
-        self.dataset_table.setAlternatingRowColors(True) 
-        self.dataset_table.verticalHeader().setVisible(False)  
+        self.dataset_table.setSelectionBehavior(QTableWidget.SelectRows) # 整行选中
+        self.dataset_table.setEditTriggers(QTableWidget.NoEditTriggers)  # 不可编辑
+        self.dataset_table.setAlternatingRowColors(True)  # 交替行颜色
+        self.dataset_table.verticalHeader().setVisible(False)   # 隐藏垂直表头
         self.dataset_table.verticalHeader().setDefaultSectionSize(42)  # 行高
         
         # 启用平滑滚动
@@ -472,28 +468,46 @@ class DatasetView(QWidget):
         self.total_label.setStyleSheet("font-size: 14px; color: #666;border: none;")
 
         # 分页控件
-        self.prev_btn = QPushButton("上一页")
-        self.prev_btn.setStyleSheet("""
+        self.prev_btn = QPushButton()
+        base_style = """
             QPushButton {
-                background-color: #fff;
+                background-color: transparent;
                 color: #666;
-                border: 1px solid #d9d9d9;
+                border: none;
                 border-radius: 4px;
-                padding: 6px 12px;
-                min-width: 80px;
+                padding: 0;
+                min-width: 60px;
+                min-height: 30px;
             }
             QPushButton:hover {
                 color: #1890ff;
                 border-color: #1890ff;
+                cursor: pointer;
             }
             QPushButton:disabled {
                 color: #ccc;
                 border-color: #eee;
             }
+            QPushButton:pressed {
+                padding: 2px;
+            }
+        """
+        self.prev_btn.setStyleSheet(base_style+"""
+            QPushButton {
+                image: url(utils/img/left_arrow.png);
+                width: 12px;
+                height: 12px;
+            }
         """)
 
-        self.next_btn = QPushButton("下一页")
-        self.next_btn.setStyleSheet(self.prev_btn.styleSheet())
+        self.next_btn = QPushButton()
+        self.next_btn.setStyleSheet(base_style+"""
+            QPushButton {
+                image: url(utils/img/right_arrow.png);
+                width: 12px;
+                height: 12px;
+            }            
+        """)
 
         # 页码选择
         self.page_combo = QComboBox()
@@ -503,6 +517,7 @@ class DatasetView(QWidget):
                 border-radius: 4px;
                 padding: 6px;
                 min-width: 80px;
+                text-align: center;
             }
             QComboBox:hover {
                 border-color: #c0c4cc;
@@ -512,13 +527,19 @@ class DatasetView(QWidget):
                 box-shadow: 0 0 3px rgba(24, 144, 255, 0.3);
             }
             QComboBox:on {
-                background: #f5f5f5;
+                background: transparent;
             }
             QComboBox::drop-down {
                 subcontrol-origin: padding;
                 subcontrol-position: right center;
                 width: 20px;
                 border: none;
+
+            }
+            QComboBox::down-arrow {
+                image:url(utils/img/down_arrow.png);
+                width: 12px;
+                height: 12px;
             }
         """)
 
@@ -585,58 +606,57 @@ class DatasetView(QWidget):
         # 基础按钮样式（调整尺寸和内边距）
         base_style = """
         QPushButton {
-            border-radius: 3px;
-            padding: 1px 2px; /* 调整内边距 */
-            font-size: 12px;
-            min-width: 40px; /* 增加最小宽度以容纳图标和文字 */
-            max-width: 50px; /* 增加最大宽度 */
-            min-height: 12px; /* 设置合适的最小高度 */
+            padding: 0;
+            min-width: 30px; /* 增加最小宽度以容纳图标和文字 */
+            min-height: 30px; /* 设置合适的最小高度 */
             font-family: 'Microsoft YaHei';
-            text-align: center; /* 确保文本居中 */
         }
         QPushButton:pressed {
             padding: 2px 3px; /* 轻微调整按压效果 */
-            margin: 1px 1px 0 1px;
         }
         """
         
         # 查看按钮（优化图标显示）
-        view_btn = QPushButton("查看")
-        # view_btn.setIcon(QIcon(":/icons/view.png"))
+        view_btn = QPushButton()
         view_btn.setStyleSheet(base_style + """
-            background: #e6f7ff;
-            color: #1890ff;
-            border-color: #91d5ff;
+            background: transparent;
+            image: url(utils/img/view.png);
+            width: 16px;
+            height: 16px;
+            border: none;
         """)
         view_btn.setCursor(Qt.PointingHandCursor)
         
         # 编辑按钮（修正尺寸）
-        edit_btn = QPushButton("编辑")
-        # edit_btn.setIcon(QIcon(":/icons/edit.png"))
+        edit_btn = QPushButton()
         edit_btn.setStyleSheet(base_style + """
-            background: #f6ffed;
-            color: #52c41a;
-            border-color: #b7eb8f;
+            background: transparent;
+            image: url(utils/img/edit.png);
+            width: 16px;
+            height: 16px;
+            border: none;
         """)
         edit_btn.setCursor(Qt.PointingHandCursor)
 
         # 导入按钮
-        import_btn = QPushButton("导入")
-        # import_btn.setIcon(QIcon(":/icons/import.png"))
+        import_btn = QPushButton()
         import_btn.setStyleSheet(base_style + """
-            background: #fffbe6;
-            color: #faad14;
-            border-color: #ffe58f;
+            background: transparent;
+            image: url(utils/img/import.png);
+            width: 12px;
+            height: 12px;
+            border: none;
         """)
         import_btn.setCursor(Qt.PointingHandCursor)
         
         # 删除按钮（确保可见性）
-        delete_btn = QPushButton("删除")
-        # delete_btn.setIcon(QIcon(":/icons/delete.png"))
+        delete_btn = QPushButton()
         delete_btn.setStyleSheet(base_style + """
-            background: #fff1f0;
-            color: #ff4d4f;
-            border-color: #ffa39e;
+            background: transparent;
+            image: url(utils/img/delete.png);
+            width: 12px;
+            height: 12px;
+            border: none;
         """)
         delete_btn.setCursor(Qt.PointingHandCursor)
         
@@ -670,8 +690,6 @@ class DatasetView(QWidget):
         self.end_date_edit.setDate(QDate.currentDate())
 
         self.reset_signal.emit()
-
-
 
     def update_pagination(self, total_items, current_page, total_pages):
         """更新分页控件状态"""
