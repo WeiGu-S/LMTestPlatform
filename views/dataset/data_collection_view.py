@@ -9,10 +9,11 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QDate, Signal
 from PySide6.QtGui import QIcon, QColor, QFont, QPalette
 from functools import partial
-
 from sqlalchemy import true
+from utils.database import DatabaseManager
 from utils.logger import get_logger
 from views.dataset import data_collection_details_dialog
+from models.dataset_son_model import DataModel
 
 logger = get_logger("dataset_view")
 
@@ -75,9 +76,11 @@ class DataCollectionView(QWidget):
     def emit_query_signal(self):
         """收集筛选条件并发射查询信号"""
         filters = {
-            'dataset_name': self.name_filter_input.text().strip(),
-            'status': self.status_filter_combo.currentText(),
-            'dataset_category': self.category_filter_combo.currentText(),
+            # 'dataset_name': self.name_filter_input.text().strip(),
+            # 'status': self.status_filter_combo.currentText(),
+            # 'dataset_category': self.category_filter_combo.currentText(),
+            'project_name': self.project_filter_input.text().strip(),
+            'collection_name': self.name_filter_input.text().strip(),
             'start_date': self.start_date_edit.date(),
             'end_date': self.end_date_edit.date()
         }
@@ -102,14 +105,14 @@ class DataCollectionView(QWidget):
         filter_layout.setContentsMargins(8, 8, 8, 8)
 
         # 第一行筛选条件
-        # 所属项目名称
+        # 所属项目
         project_label = QLabel("所属项目:")
         project_label.setStyleSheet("font-size: 14px; color: #333;")
         filter_layout.addWidget(project_label, 0, 0)
 
-        self.name_filter_input = QLineEdit()
-        self.name_filter_input.setPlaceholderText("请输入所属项目")
-        self.name_filter_input.setStyleSheet("""
+        self.project_filter_input = QLineEdit()
+        self.project_filter_input.setPlaceholderText("请输入所属项目")
+        self.project_filter_input.setStyleSheet("""
             QLineEdit {
                 font-size: 14px;
                 border: 1px solid #dcdfe6;
@@ -118,12 +121,11 @@ class DataCollectionView(QWidget):
                 min-width: 150px;
             }
         """)
-        filter_layout.addWidget(self.name_filter_input, 0, 1)
-
+        filter_layout.addWidget(self.project_filter_input, 0, 1)
         # 数据集名称
         name_label = QLabel("数据集名称:")
         name_label.setStyleSheet("font-size: 14px; color: #333;")
-        filter_layout.addWidget(name_label, 0, 0)
+        filter_layout.addWidget(name_label, 0, 3)
 
         self.name_filter_input = QLineEdit()
         self.name_filter_input.setPlaceholderText("请输入数据集名称")
@@ -136,7 +138,7 @@ class DataCollectionView(QWidget):
                 min-width: 150px;
             }
         """)
-        filter_layout.addWidget(self.name_filter_input, 0, 1)
+        filter_layout.addWidget(self.name_filter_input, 0, 4)
 
         # # 状态筛选
         # status_label = QLabel("状态:")
@@ -413,7 +415,7 @@ class DataCollectionView(QWidget):
         header.setSectionResizeMode(4, QHeaderView.Fixed)  # 时间
         
         self.dataset_table.setColumnWidth(0, 80)   # 序号
-        self.dataset_table.setColumnWidth(1, 80)  # 所属项目
+        self.dataset_table.setColumnWidth(1, 150)  # 所属项目
         self.dataset_table.setColumnWidth(3, 80)  # 内容量
         self.dataset_table.setColumnWidth(4, 150)  # 时间
         self.dataset_table.setColumnWidth(5, 200)  # 操作（加宽）
@@ -444,7 +446,6 @@ class DataCollectionView(QWidget):
                 color: #1976d2;
             }
         """)
-
         
         # 通用设置
         self.dataset_table.setSelectionBehavior(QTableWidget.SelectRows) # 整行选中
@@ -574,39 +575,44 @@ class DataCollectionView(QWidget):
         """获取当前页码"""
         return int(self.page_combo.currentText())
 
-    def update_table(self, datasets, total_items, current_page, total_pages):
+    def update_table(self, data_collections, total_items, current_page, total_pages):
         """更新表格数据"""
+        print(f"更新表格数据: {data_collections}")
         self.dataset_table.setRowCount(0)
-        self.dataset_table.setRowCount(len(datasets))
-        
-        for row, dataset in enumerate(datasets):
-            # 填充数据
-            # self.dataset_table.setItem(row, 0, QTableWidgetItem(str(dataset.get("id", ""))))
-            # 第一列默认填充序号，且固定为 1-10
-            self.dataset_table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
-            self.dataset_table.setItem(row, 1, QTableWidgetItem(dataset.get("dataset_name", "")))
-            self.dataset_table.setItem(row, 2, QTableWidgetItem(dataset.get("dataset_category", "")))
-            
-            status_item = QTableWidgetItem(dataset.get("status", ""))
-            status_item.setTextAlignment(Qt.AlignCenter)
-            self.dataset_table.setItem(row, 3, status_item)
-            
-            size_item = QTableWidgetItem(str(dataset.get("content_size", "")))
-            size_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.dataset_table.setItem(row, 4, size_item)
-            
-            time_item = QTableWidgetItem(dataset.get("created_time", ""))
-            time_item.setTextAlignment(Qt.AlignCenter)
-            self.dataset_table.setItem(row, 5, time_item)
+        self.dataset_table.setRowCount(len(data_collections))
+        with DatabaseManager().get_session() as session:
+            for row, data_collection in enumerate(data_collections):
+                # 填充数据
+                # 第一列默认填充序号，且固定为 1-10
+                self.dataset_table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
+                self.dataset_table.setItem(row, 1, QTableWidgetItem(data_collection.get("project_name", "")))
+                self.dataset_table.setItem(row, 2, QTableWidgetItem(data_collection.get("collection_name", "")))
+                
+                # status_item = QTableWidgetItem(data_collection.get("status", ""))
+                # status_item.setTextAlignment(Qt.AlignCenter)
+                # self.dataset_table.setItem(row, 3, status_item)
+                
+                # size_item = QTableWidgetItem(str(dataset.get("content_size", "")))
+                # size_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                # self.dataset_table.setItem(row, 3, size_item)
+                collections = DataModel.get_all_data(session, collection_id=data_collection.get("collection_id", ""))
+                size_item = QTableWidgetItem(str(len(collections)) if collections else "0")
+                size_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.dataset_table.setItem(row, 3, size_item)
+                
+                time_item = QTableWidgetItem(data_collection.get("created_time", ""))
+                time_item.setTextAlignment(Qt.AlignCenter)
+                self.dataset_table.setItem(row, 4, time_item)
 
-            # 添加操作按钮
-            self.add_action_buttons(row, str(dataset.get("id", "")))
+                # 添加操作按钮
+                self.add_action_buttons(row, str(data_collection.get("collection_id", "")))
+                print(f"collection_id: {data_collection.get('collection_id', '')}")
 
         # 更新分页信息
         self.update_pagination(total_items, current_page, total_pages)
 
-    def add_action_buttons(self, row, dataset_id):
-        """最终优化的操作列按钮（解决所有显示问题）"""
+    def add_action_buttons(self, row, collection_id):
+        """添加操作列按钮"""
         # 创建按钮容器（使用QWidget更轻量）
         button_widget = QWidget()
         button_widget.setStyleSheet("background: transparent;")
@@ -674,10 +680,10 @@ class DataCollectionView(QWidget):
         delete_btn.setCursor(Qt.PointingHandCursor)
         
         # 事件绑定
-        view_btn.clicked.connect(lambda: self.view_signal.emit(dataset_id))
-        edit_btn.clicked.connect(lambda: self.edit_signal.emit(dataset_id))
-        import_btn.clicked.connect(lambda: self.import_signal.emit(dataset_id))
-        delete_btn.clicked.connect(lambda: self.delete_signal.emit(dataset_id))
+        view_btn.clicked.connect(lambda: self.view_signal.emit(collection_id))
+        edit_btn.clicked.connect(lambda: self.edit_signal.emit(collection_id))
+        import_btn.clicked.connect(lambda: self.import_signal.emit(collection_id))
+        delete_btn.clicked.connect(lambda: self.delete_signal.emit(collection_id))
         
         # 添加到布局（保持等间距）
         button_layout.addWidget(view_btn)
@@ -686,19 +692,20 @@ class DataCollectionView(QWidget):
         button_layout.addWidget(delete_btn)
         
         # 设置到表格（关键修复步骤）
-        self.dataset_table.setCellWidget(row, 6, button_widget)
+        self.dataset_table.setCellWidget(row, 5, button_widget)
         
         # 强制列宽设置（双重保障）
-        self.dataset_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Fixed)
-        if self.dataset_table.columnWidth(6) < 220:
-            self.dataset_table.setColumnWidth(6, 220)
+        # self.dataset_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Fixed)
+        if self.dataset_table.columnWidth(5) < 220:
+            self.dataset_table.setColumnWidth(5, 220)
         
 
     def reset_filters(self):
         """重置筛选条件"""
+        self.project_filter_input.clear()
         self.name_filter_input.clear()
-        self.category_filter_combo.setCurrentIndex(0)
-        self.status_filter_combo.setCurrentIndex(0)
+        # self.category_filter_combo.setCurrentIndex(0)
+        # self.status_filter_combo.setCurrentIndex(0)
         self.start_date_edit.setDate(QDate.currentDate().addMonths(-1))
         self.end_date_edit.setDate(QDate.currentDate())
 
@@ -732,7 +739,7 @@ class DataCollectionView(QWidget):
         """显示警告对话框"""
         QMessageBox.warning(self, title, message)
 
-    def ask_for_confirmation(self, title, message, dataset_id=None):
+    def ask_for_confirmation(self, title, message, collection_id=None):
         """显示删除确认对话框（修正信号连接问题）"""
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle(title)
@@ -751,9 +758,9 @@ class DataCollectionView(QWidget):
         """)
         
         # 连接确认信号
-        if dataset_id is not None:
+        if collection_id is not None:
             yes_button = msg_box.button(QMessageBox.Yes)
-            yes_button.clicked.connect(lambda: self.delete_confirm_signal.emit(str(dataset_id)))
+            yes_button.clicked.connect(lambda: self.delete_confirm_signal.emit(str(collection_id)))
         
         return msg_box.exec() == QMessageBox.Yes
 

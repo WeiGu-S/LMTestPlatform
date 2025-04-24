@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QGridLayout, QDialog, QFrame
 )
 from PySide6.QtCore import Qt, Signal
-from models.dataset_model import DatasetModel
+from models.data_collection_model import DataCollectionModel
 from models.dataset_son_model import DataModel, DataStatus
 from utils.database import DatabaseManager
 import pandas as pd

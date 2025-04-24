@@ -5,21 +5,21 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from models import dataset_son_model
 from utils.logger import get_logger
-from models.dataset_model import DatasetCategory, DatasetModel, DatasetStatus
+from models.data_collection_model import DataCollectionModel
 from models.dataset_son_model import DataModel
 from utils.database import DatabaseManager
 
 logger = get_logger("dataset_details_dialog")
-class DatasetDetailsDialog(QDialog):
-    def __init__(self, dataset, parent=None):
+class DataCollectionDetailsDialog(QDialog):
+    def __init__(self, data_collection, parent=None, collection_id=None):
         super().__init__(parent)
-        self.dataset = dataset
+        self.data_collection = data_collection
+        self.collection_id = collection_id
         self.init_ui()
-        # self.dataset_id = dataset.id
     def init_ui(self):
         """初始化UI"""
-        self.setWindowTitle("数据集详情: " + self.dataset.dataset_name)
-        self.resize(800, 600)
+        self.setWindowTitle("数据集详情: " + self.data_collection.collection_name)
+        self.resize(1000, 600)
         self.setup_style()
         self.setup_ui()
     def setup_style(self):
@@ -67,7 +67,7 @@ class DatasetDetailsDialog(QDialog):
     def setup_ui(self):
         """设置UI布局"""
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(30, 30, 30, 30)
+        main_layout.setContentsMargins(20, 20 , 20, 20)
         main_layout.setSpacing(20)
         self.setLayout(main_layout)
         # 创建标签页控件
@@ -79,110 +79,78 @@ class DatasetDetailsDialog(QDialog):
         # 添加数据子项标签页
         tab_widget.addTab(self.create_items_tab(), "数据子项")
     def create_basic_info_tab(self):
-        """创建基本信息标签页（优化行间距和备注处理）"""
+        """创建基本信息标签页（优化布局与样式）"""
         tab = QWidget()
         
-        # 主布局 - 使用网格布局确保完美居中
+        # 主布局 - 居中显示内容容器
         main_layout = QGridLayout(tab)
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setContentsMargins(24, 16, 24, 16)
         
-        # 创建表单容器（固定宽度+圆角阴影）
+        # 表单容器样式
         form_container = QWidget()
-        form_container.setFixedWidth(600)  # 适当加宽容器
+        form_container.setFixedWidth(600)
         form_container.setStyleSheet("""
             background-color: white;
             border-radius: 12px;
-            padding: 25px 35px;
-            border: none;
+            padding: 16px;
+            border: 1px solid #CCCCCC;
         """)
         
-        # 表单布局 - 紧凑型设计
+        # 表单布局
         form_layout = QFormLayout()
         form_layout.setContentsMargins(0, 0, 0, 0)
-        form_layout.setSpacing(12)  # 行间距从15px减小到12px
+        form_layout.setSpacing(12)
         form_layout.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
         
-        # 统一字体配置
-        field_font = QFont("Microsoft YaHei", 14)  # 适当增大字体
+        # 字体与样式
+        field_font = QFont("Microsoft YaHei", 14)
         label_style = """
             QLabel {
                 color: #424242;
                 font-weight: 500;
                 padding-right: 12px;
-                min-width: 90px;
-            }
-        """
-        value_style = """
-            QLabel {
-                color: #616161;
-                background: #FAFAFA;
-                padding: 6px 10px;
-                min-width: 280px;
-                max-height: 36px;
-                border-radius: 8px;
-                border: 1px solid #EEEEEE;
-            }
-        """
-        remark_style = """
-            QLabel {
-                color: #616161;
-                background: #FAFAFA;
-                padding: 12px;
-                min-width: 280px;
-                max-width: 280px;
-                border-radius: 6px;
-                border: 1px solid #EEEEEE;
+                min-width: 110px;
             }
         """
 
-        # 添加基本信息字段
+        # 查询数据数量（添加 del_flag=0 条件）
+        with DatabaseManager.get_session() as session:
+            count = session.query(DataModel).filter(
+                DataModel.collection_id == self.data_collection.collection_id,
+                DataModel.del_flag == 0
+            ).count()
+
+        # 基本信息字段
         info_fields = [
-            ("数据集名称", lambda: self.dataset.dataset_name, False),
-            ("类型", lambda: self.dataset.dataset_category.value, False),
-            ("状态", lambda: self.dataset.status.value, False),
-            ("内容量", lambda: str(self.dataset.content_size), False),
-            ("备注", lambda: self.dataset.remark if self.dataset.remark else "无", True)  # 特殊处理备注
+            ("所属项目", lambda: self.data_collection.project_name, False),
+            ("数据集名称", lambda: self.data_collection.collection_name, False),
+            ("数据数量", lambda: count if count else "0", False),
         ]
 
-        for label, value_getter, is_remark in info_fields:
-            # 创建标签
+        for label, value_getter, _ in info_fields:
+            # 标签控件
             label_widget = QLabel(f"{label}:")
             label_widget.setFont(field_font)
             label_widget.setStyleSheet(label_style)
             label_widget.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            
-            # 创建值控件
+
+            # 值控件
             value = str(value_getter()) if value_getter() else "无"
             value_widget = QLabel(value)
             value_widget.setFont(field_font)
             value_widget.setWordWrap(True)
-            
-            # 备注行特殊样式处理
-            if is_remark:
-                value_widget.setStyleSheet(remark_style)
-                value_widget.setWordWrap(True)
-                # 调整备注的高度
-                value_widget.setTextInteractionFlags(Qt.TextSelectableByMouse)
-                value_widget.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-                value_widget.setMinimumHeight(80)  # 为备注提供足够高度
-                value_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-            else:
-                value_widget.setStyleSheet(value_style)
-                value_widget.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-            
-            # 使用水平布局包装值控件
+            value_widget.setStyleSheet("color: #333333; padding-left: 4px;")
+
+            # 包装值控件（留出右侧空隙）
             value_container = QWidget()
             h_layout = QHBoxLayout(value_container)
             h_layout.setContentsMargins(0, 0, 0, 0)
             h_layout.addWidget(value_widget)
-            h_layout.addStretch()  # 右侧留白
-            
-            # 添加到表单布局
+            h_layout.addStretch()
+
             form_layout.addRow(label_widget, value_container)
         
         form_container.setLayout(form_layout)
-        
-        # 将容器放入主布局中心
         main_layout.addWidget(form_container, 0, 0, Qt.AlignCenter)
         main_layout.setRowStretch(0, 1)
         main_layout.setColumnStretch(0, 1)
@@ -193,11 +161,11 @@ class DatasetDetailsDialog(QDialog):
         """创建数据子项标签页"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setContentsMargins(10, 10, 20, 10)  # 
+        layout.setContentsMargins(0, 0, 0, 0)  # 
 
         # 创建表格容器
         table_container = QWidget()
-        table_container.setMinimumSize(900, 400)
+        table_container.setMinimumSize(1000, 400)
         table_container.setStyleSheet("""
             QWidget {
                 background-color: white;
@@ -208,6 +176,8 @@ class DatasetDetailsDialog(QDialog):
         """)
 
         table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
 
         # 初始化表格
         self.data_table = QTableWidget()
@@ -215,9 +185,9 @@ class DatasetDetailsDialog(QDialog):
 
         self.data_table.setFont(QFont("Microsoft YaHei", 14))
         self.data_table.setAlternatingRowColors(True)
-        self.data_table.setColumnCount(6)
+        self.data_table.setColumnCount(7)
 
-        headers = ["序号", "标题", "答案", "状态", "标签", "创建时间"]
+        headers = ["序号", "数据类型", "上下文", "问题", "答案", "问题类型", "标签"]
         self.data_table.setHorizontalHeaderLabels(headers)
         self.data_table.verticalHeader().setVisible(False)   # 隐藏垂直表头
         self.data_table.setEditTriggers(QTableWidget.NoEditTriggers)  # 禁用编辑
@@ -252,13 +222,14 @@ class DatasetDetailsDialog(QDialog):
             }
         """)
 
-        header.setStretchLastSection(False) 
+        header.setStretchLastSection(False)  
         header.setSectionResizeMode(0, QHeaderView.Fixed)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.Fixed)
-        header.setSectionResizeMode(3, QHeaderView.Fixed)
-        header.setSectionResizeMode(4, QHeaderView.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.Stretch)
         header.setSectionResizeMode(5, QHeaderView.Fixed)
+        header.setSectionResizeMode(6, QHeaderView.Fixed)
 
         # 表格样式设置        
         self.data_table.setStyleSheet("""
@@ -270,6 +241,7 @@ class DatasetDetailsDialog(QDialog):
                 gridline-color: #f0f0f0;
                 selection-background-color: #e3f2fd;
                 selection-color: #1976d2;
+                padding: 0;
             }
             QTableWidget#dataTable::item {
                 padding: 0;
@@ -284,11 +256,12 @@ class DatasetDetailsDialog(QDialog):
 
         # 设置列宽
         self.data_table.setColumnWidth(0, 40) # 序号列
-        self.data_table.setColumnWidth(1, 200)  # 标题列
-        self.data_table.setColumnWidth(2, 200)  # 答案列
-        self.data_table.setColumnWidth(3, 60)  # 状态列
-        self.data_table.setColumnWidth(4, 100)  # 标签列
-        self.data_table.setColumnWidth(5, 150)  # 创建时间列
+        self.data_table.setColumnWidth(1, 80)  # 数据类型列
+        self.data_table.setColumnWidth(2, 200)  # 上下文列
+        self.data_table.setColumnWidth(3, 200)  # 问题列
+        self.data_table.setColumnWidth(4, 200)  # 答案列
+        self.data_table.setColumnWidth(5, 80)  # 问题类型
+        self.data_table.setColumnWidth(6, 80)  # 标签列
 
         table_layout.addWidget(self.data_table)
         layout.addWidget(table_container)
@@ -298,7 +271,7 @@ class DatasetDetailsDialog(QDialog):
 
         return tab
 
-    def update_tab_table(self, dataset=None, current_page=1, total_pages=1):
+    def update_tab_table(self, datas=None, current_page=1, total_pages=1):
         """更新数据子项表格（完整实现）"""
         # 表格初始化检查
         if not hasattr(self, 'data_table'):
@@ -310,11 +283,13 @@ class DatasetDetailsDialog(QDialog):
             self.data_table.setRowCount(0)
             with DatabaseManager.get_session() as session:
                 datas, total_items, total_pages = DataModel.get_paginated_data(
-                        session,
-                        dataset_id=self.dataset.id,
+                        collection_id=int(self.collection_id),
+                        session=session,
                         page=current_page,
                         per_page=10
                     )
+
+            print(f"update_tab_table_datas: {datas}")
             
             # 处理空数据状态
             if not datas:
@@ -333,18 +308,12 @@ class DatasetDetailsDialog(QDialog):
             for row, data in enumerate(datas):
                 # 填充各列数据
                 self.data_table.setItem(row, 0, QTableWidgetItem(str(row+1)))  # 序号
-                self.data_table.setItem(row, 1, QTableWidgetItem(data.get('title', '')))  # 标题
-                self.data_table.setItem(row, 2, QTableWidgetItem(data.get('answer', '')))  # 答案
-                
-                # 状态列（特殊居中处理）
-                status_item = QTableWidgetItem(data.get('status', ''))
-                self.data_table.setItem(row, 3, status_item)
-                
-                self.data_table.setItem(row, 4, QTableWidgetItem(data.get('tags', '')))  # 标签
-                
-                # 时间列（自动转为字符串）
-                time_str = str(data.get('created_time', ''))[:19]  # 截取到秒
-                self.data_table.setItem(row, 5, QTableWidgetItem(time_str))
+                self.data_table.setItem(row, 1, QTableWidgetItem(data.get('data_type', '')))  # 数据类型
+                self.data_table.setItem(row, 2, QTableWidgetItem(data.get('context', '')))  # 上下文
+                self.data_table.setItem(row, 3, QTableWidgetItem(data.get('question', '')))  # 问题               
+                self.data_table.setItem(row, 4, QTableWidgetItem(data.get('answer', '')))  # 答案                
+                self.data_table.setItem(row, 5, QTableWidgetItem(data.get('question_type', '')))  # 问题类型
+                self.data_table.setItem(row, 6, QTableWidgetItem(data.get('question_label', '')))  # 标签
 
                 # 添加操作按钮（如需）
                 # self._add_action_buttons(row_idx, str(item.get('id', '')))

@@ -7,24 +7,24 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt,Slot,Signal
 from PySide6.QtGui import QCursor
 from utils.logger import get_logger
-from models.dataset_model import DatasetModel, DatasetStatus, DatasetCategory
+from models.data_collection_model import DataCollectionModel
 from utils.database import DatabaseManager
 import enum
 
-logger = get_logger("dataset_dialog")
+logger = get_logger("data_collection_dialog")
 
-class DatasetDialog(QDialog):
+class DataCollectionDialog(QDialog):
 
     confirmed = Signal(dict)
-    def __init__(self, parent=None, dataset=None, mode="insert"):
+    def __init__(self, parent=None, data_collection=None, mode="insert"):
         super().__init__(parent)
-        self.dataset = dataset
+        self.data_collection = data_collection
         self.mode = mode
         self.setup_ui()
         self.setup_style()
         self.setup_connections()
         
-        if self.mode == 'modify' and self.dataset:
+        if self.mode == 'edit' and self.data_collection:
             self.setWindowTitle("修改数据集")
             self.fill_data()
         else:
@@ -57,21 +57,25 @@ class DatasetDialog(QDialog):
         form_layout.setHorizontalSpacing(20)
         form_layout.setVerticalSpacing(18)
         
+        # 项目名称
+        self.project_name_input = self.create_line_edit("请输入项目名称")
+        self.add_form_row(form_layout, 0, "项目名称:", self.project_name_input)
+
         # 数据集名称
         self.name_input = self.create_line_edit("请输入数据集名称")
-        self.add_form_row(form_layout, 0, "数据集名称:", self.name_input)
+        self.add_form_row(form_layout, 1, "数据集名称:", self.name_input)
         
-        # 数据类型
-        self.category_combo = self.create_combo_box(["视频", "图片", "文本", "音频"])
-        self.add_form_row(form_layout, 1, "数据类型:", self.category_combo)
+        # # 数据类型
+        # self.category_combo = self.create_combo_box(["视频", "图片", "文本", "音频"])
+        # self.add_form_row(form_layout, 1, "数据类型:", self.category_combo)
         
-        # 状态
-        self.status_combo = self.create_combo_box(["启用", "停用"])
-        self.add_form_row(form_layout, 2, "状态:", self.status_combo)
+        # # 状态
+        # self.status_combo = self.create_combo_box(["启用", "停用"])
+        # self.add_form_row(form_layout, 2, "状态:", self.status_combo)
         
-        # 备注
-        self.remark_input = self.create_text_edit("请输入备注")
-        self.add_form_row(form_layout, 3, "备注:", self.remark_input)
+        # # 备注
+        # self.remark_input = self.create_text_edit("请输入备注")
+        # self.add_form_row(form_layout, 3, "备注:", self.remark_input)
         
         parent_layout.addLayout(form_layout)
 
@@ -146,45 +150,48 @@ class DatasetDialog(QDialog):
         """发射确认信号"""
         form_data = self.get_form_data()
         form_data["mode"] = self.mode
-        if self.mode == 'modify' and self.dataset: # Check if dataset exists for modify mode
-            form_data["dataset_id"] = self.dataset.id
+        if self.mode == 'edit' and self.data_collection: # Check if data_collection exists for modify mode
+            form_data["collection_id"] = self.collection_id
 
         self.confirmed.emit(form_data)
         self.accept()
 
     def fill_data(self):
         """填充数据集数据"""
-        if not self.dataset: # Add a check if dataset is None
+        if not self.data_collection: # Add a check if data_collection is None
             return
         self.setWindowTitle("修改数据集")
-        self.name_input.setText(self.dataset.dataset_name or '')
+        self.project_name_input.setText(self.data_collection.project_name or '')
+        self.name_input.setText(self.data_collection.collection_name or '')
         
-        # Handle potential Enum type for category and status
-        category_value = self.dataset.dataset_category.value if isinstance(self.dataset.dataset_category, enum.Enum) else self.dataset.dataset_category
-        category_index = self.category_combo.findText(category_value or '')
-        if category_index >= 0:
-            self.category_combo.setCurrentIndex(category_index)
+        
+        # # Handle potential Enum type for category and status
+        # category_value = self.data_collection.data_collection_category.value if isinstance(self.data_collection.data_collection_category, enum.Enum) else self.data_collection.data_collection_category
+        # category_index = self.category_combo.findText(category_value or '')
+        # if category_index >= 0:
+        #     self.category_combo.setCurrentIndex(category_index)
             
-        status_value = self.dataset.status.value if isinstance(self.dataset.status, enum.Enum) else self.dataset.status
-        status_index = self.status_combo.findText(status_value or '')
-        if status_index >= 0:
-            self.status_combo.setCurrentIndex(status_index)
+        # status_value = self.data_collection.status.value if isinstance(self.data_collection.status, enum.Enum) else self.data_collection.status
+        # status_index = self.status_combo.findText(status_value or '')
+        # if status_index >= 0:
+        #     self.status_combo.setCurrentIndex(status_index)
             
-        self.remark_input.setText(self.dataset.remark or '')
+        # self.remark_input.setText(self.data_collection.remark or '')
         self.name_input.setFocus()
 
     def get_form_data(self):
         """获取表单数据"""
         return {
-            'dataset_name': self.name_input.text(),
-            'dataset_category': self.category_combo.currentText(),
-            'status': self.status_combo.currentText(),
-            'remark': self.remark_input.toPlainText()
+            'collection_name': self.name_input.text(),
+            'project_name': self.project_name_input.text()
+            # 'data_collection_category': self.category_combo.currentText(),
+            # 'status': self.status_combo.currentText(),
+            # 'remark': self.remark_input.toPlainText()
         }
 
-    def set_form_data(self, dataset):
+    def set_form_data(self, data_collection):
         """设置表单数据"""
-        self.dataset = dataset
+        self.data_collection = data_collection
         self.fill_data()
 
     def setup_style(self):
