@@ -1,11 +1,13 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
     QTableWidgetItem, QPushButton, QFileDialog, QMessageBox,
-    QLabel, QLineEdit, QGridLayout, QDialog, QFrame
+    QLabel, QLineEdit, QGridLayout, QDialog, QFrame,QHeaderView
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont, QColor, QBrush, QFontMetrics
 from models.data_collection_model import DataCollectionModel
 from models.dataset_son_model import DataModel, DataStatus
+from models.eum import BaseEnum, DataType, QuestionLabel, QuestionType
 from utils.database import DatabaseManager
 import pandas as pd
 import pandas as pd
@@ -16,14 +18,14 @@ logger = get_logger("import_dialog")
 
 class ImportDialog(QDialog):
     import_confirmed = Signal(list)
-    def __init__(self, parent=None, dataset_id=None, datas=None):
+    def __init__(self, parent=None, collection_id=None, datas=None):
         super().__init__(parent)
-        self.dataset_id = dataset_id
+        self.collection_id = collection_id
         self.datas = datas
         # 设置对话框标题
         self.setWindowTitle("数据导入")
         # 设置对话框大小
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(850, 500)
         # 设置对话框样式
         self.setStyleSheet("""
             QDialog {
@@ -37,13 +39,20 @@ class ImportDialog(QDialog):
 
     def init_ui(self):
         """初始化界面"""
-        # 主体布局
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(15)
-        self.setLayout(main_layout)
+        # 创建主布局
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(20, 20, 20, 20)
+        self.main_layout.setSpacing(15)
+        self.setLayout(self.main_layout)
 
-        # 顶部区域
+        # 初始化三个主要区域
+        self.init_top_area()
+        self.init_table_area()
+        self.init_bottom_area()
+
+    def init_top_area(self):
+        """初始化顶部区域"""
+        # 创建顶部容器
         top_frame = QFrame()
         top_frame.setStyleSheet("""
             QFrame {
@@ -54,9 +63,11 @@ class ImportDialog(QDialog):
                 height: 40px;
             }
         """)
+        
+        # 创建顶部布局
         top_layout = QHBoxLayout(top_frame)
         
-        # 选择文件按钮
+        # 创建并添加按钮和显示组件
         self.select_file_btn = QPushButton("选择文件")
         self.select_file_btn.setMinimumSize(100, 32)
         self.select_file_btn.setStyleSheet("""
@@ -72,9 +83,9 @@ class ImportDialog(QDialog):
             }
         """)
         self.select_file_btn.clicked.connect(self.select_file)
-        top_layout.addWidget(self.select_file_btn)        
-        # 文件名称显示区域
+        
         self.file_name_display = QLineEdit()
+        self.file_name_display.setPlaceholderText("请选择文件")
         self.file_name_display.setReadOnly(True)
         self.file_name_display.setStyleSheet("""
             QLineEdit {
@@ -85,89 +96,160 @@ class ImportDialog(QDialog):
                 max-width: 200px;
                 height: 32px;
             }
-            QLineEdit::uneditable {
-                background-color: #f5f7fa;
-            }
         """)
-        top_layout.addWidget(self.file_name_display)
-        # 导入模板下载按钮
+        
         self.download_template_btn = QPushButton("下载模板")
         self.download_template_btn.setMinimumSize(100, 32)
         self.download_template_btn.setStyleSheet("""
             QPushButton {
                 background-color: #409eff;
                 color: white;
-                border-radius: 4px; 
+                border-radius: 4px;
                 width: 60px;
                 height: 32px;
             }
             QPushButton:hover {
-                
+                background-color: #66b1ff;
             }
         """)
         self.download_template_btn.clicked.connect(self.download_template)
+        
+        # 添加提示文本
+        info_label = QLabel("提示：预览展示前十条数据")
+        info_label.setStyleSheet("color: #606266; font-weight: bold; border: none;")
+        
+        # 组装顶部布局
+        top_layout.addWidget(self.select_file_btn)
+        top_layout.addWidget(self.file_name_display)
         top_layout.addWidget(self.download_template_btn)
         top_layout.addStretch()
-        main_layout.addWidget(top_frame)
-
-
-        # 提示标签
-        info_label = QLabel("提示：预览展示前十条数据")
-        info_label.setStyleSheet("""
-            QLabel {
-                color: #606266;
-                font-weight: bold;
-                border:none;
-            }
-        """)
         top_layout.addWidget(info_label)
         top_layout.addStretch()
+        
+        self.main_layout.addWidget(top_frame)
 
-        # 表格区域
-        self.data_table = QTableWidget()
-        self.data_table.setColumnCount(4)
-        self.data_table.setHorizontalHeaderLabels(["序号", "标题", "答案", "标签"])
-        self.data_table.verticalHeader().setVisible(False)
-        self.data_table.setStyleSheet("""
-            QTableWidget {
+    def init_table_area(self):
+        """初始化表格区域"""
+        # 创建表格容器
+        table_container = QWidget()
+        table_container.setMinimumSize(1000, 400)
+        table_container.setStyleSheet("""
+            QWidget {
                 background-color: white;
-                border: 1px solid #e4e7ed;
-                border-radius: 8px;
-            }
-            QHeaderView::section {
-                background-color: #f5f7fa;
-                padding: 5px;
+                border-radius: 12px;
+                padding: 0;
                 border: none;
-                border-right: 1px solid #e4e7ed;
-                border-bottom: 1px solid #e4e7ed;
             }
         """)
-        # 设置列宽
-        self.data_table.setColumnWidth(0, 40)
-        self.data_table.setColumnWidth(1, 280)
-        self.data_table.setColumnWidth(2, 280)
-        self.data_table.setColumnWidth(3, 180)
-        
-        main_layout.addWidget(self.data_table)
 
-        # 底部按钮区域
-        button_frame = QFrame()
-        button_frame.setStyleSheet("""
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
+
+        # 创建表格
+        self.data_table = QTableWidget()
+        self.data_table.setObjectName("dataTable")
+        self.data_table.setFont(QFont("Microsoft YaHei", 14))
+        self.data_table.setAlternatingRowColors(True)
+        self.data_table.setColumnCount(7)
+        self.data_table.setHorizontalHeaderLabels(["序号", "数据分类", "题型", "上下文", "问题", "答案", "问题标签"])
+        self.data_table.verticalHeader().setVisible(False)
+        self.data_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.data_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.data_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.data_table.verticalHeader().setDefaultSectionSize(42)
+
+        # 设置表头
+        header = self.data_table.horizontalHeader()
+        header.setObjectName("tableHeader")
+        header.setStyleSheet("""
+            QHeaderView#tableHeader {
+                background-color: transparent;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+            }
+            QHeaderView#tableHeader::section {
+                background-color: #f5f5f5;
+                color: #333333;
+                border: none;
+                border-bottom: 2px solid #e0e0e0;
+                border-left: 1px solid #e0e0e0;
+                padding: 10px 12px;
+                font-family: "Microsoft YaHei";
+                font-size: 13px;
+                font-weight: 500;
+                qproperty-alignment: AlignCenter;
+            }
+        """)
+        header.setFont(QFont("Microsoft YaHei", 12, QFont.Medium))
+
+        # 设置表头列伸缩模式
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.Fixed)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.Stretch)
+        header.setSectionResizeMode(5, QHeaderView.Stretch)
+        header.setSectionResizeMode(6, QHeaderView.Fixed)
+
+        # 设置表格样式
+        self.data_table.setStyleSheet("""
+            QTableWidget#dataTable {
+                background-color: #ffffff;
+                alternate-background-color: #fafafa;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                gridline-color: #f0f0f0;
+                selection-background-color: #e3f2fd;
+                selection-color: #1976d2;
+                padding: 0;
+            }
+            QTableWidget#dataTable::item {
+                padding: 0;
+                border-bottom: 1px solid #f0f0f0;
+                border-left: 1px solid #f0f0f0;
+            }
+            QTableWidget#dataTable::item:selected {
+                background-color: #e3f2fd;
+                color: #1976d2;
+            }
+        """)
+
+        # 设置列宽
+        self.data_table.setColumnWidth(0, 80)
+        self.data_table.setColumnWidth(1, 80)
+        self.data_table.setColumnWidth(2, 80)
+        self.data_table.setColumnWidth(3, 200)
+        self.data_table.setColumnWidth(4, 200)
+        self.data_table.setColumnWidth(5, 200)
+        self.data_table.setColumnWidth(6, 80)
+
+        table_layout.addWidget(self.data_table)
+        
+        self.main_layout.addWidget(table_container)
+
+    def init_bottom_area(self):
+        """初始化底部区域"""
+        # 创建底部容器
+        bottom_frame = QFrame()
+        bottom_frame.setStyleSheet("""
             QFrame {
                 background-color: white;
                 border: 1px solid #e4e7ed;
                 border-radius: 8px;
-                padding: 5px;
+                padding: 6px;
                 height: 40px;
             }
         """)
-        main_layout.addWidget(button_frame)
-        button_layout = QHBoxLayout(button_frame)     
-        button_layout.setContentsMargins(0, 0, 0, 0)
-        button_layout.setSpacing(10)   
-        # 确定按钮
-        self.confirm_btn = QPushButton()
-        self.confirm_btn.setStyleSheet("""
+        
+        # 创建底部布局
+        bottom_layout = QHBoxLayout(bottom_frame)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(12)
+        
+
+        button_style = """
             QPushButton {
                 background-color: transparent;
                 border: none;
@@ -175,42 +257,40 @@ class ImportDialog(QDialog):
                 width: 40px;
                 height: 40px;
             }
-            QPushButton:hover {
-                cursor: pointer;
+            QPushButton:hover { 
+                cursor: pointer; 
             }
-            QPushButton:pressed {
-                padding: 4px;
+            QPushButton:pressed { 
+                padding: 4px; 
+            }
+        """
+        # 创建确认按钮
+        self.confirm_btn = QPushButton()
+        self.confirm_btn.setStyleSheet(button_style+"""
+            QPushButton {
+                image: url(utils/img/confirm.png);
             }
         """)
         self.confirm_btn.clicked.connect(self.emit_import_confirmed)
         
-        # 取消按钮
+        # 创建取消按钮
         self.cancel_btn = QPushButton()
         self.cancel_btn.setMinimumSize(80, 32)
-        self.cancel_btn.setStyleSheet("""
+        self.cancel_btn.setStyleSheet(button_style+"""
             QPushButton {
-                background-color: transparent;
-                border: none;
                 image: url(utils/img/cancel.png);
-                width: 40px;
-                height: 40px;
-            }
-            QPushButton:hover {
-                cursor: pointer;
-            }
-            QPushButton:pressed {
-                padding: 4px;
+
             }
         """)
-        
         self.cancel_btn.clicked.connect(self.reject)
         
-        button_layout.addStretch()
-        button_layout.addWidget(self.confirm_btn)
-        button_layout.addWidget(self.cancel_btn)
-        button_layout.addStretch()
+        # 组装底部布局
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.confirm_btn)
+        bottom_layout.addWidget(self.cancel_btn)
+        bottom_layout.addStretch()
         
-        main_layout.addLayout(button_layout)
+        self.main_layout.addWidget(bottom_frame)
 
     def select_file(self):
         """选择文件并读取数据"""
@@ -238,19 +318,23 @@ class ImportDialog(QDialog):
                     return None
 
                 # 检查必要的列是否存在
-                required_columns = ['title', 'answer', 'tags']
+                required_columns = ['data_type (数据分类)', 'context (上下文)', 'question (问题)', 
+                                 'answer (答案)', 'question_type (题型)', 'question_label (问题标签)']
                 if not all(col in df.columns for col in required_columns):
-                    QMessageBox.warning(self, "警告", "文件格式不正确，请确保包含title、answer和tags列")
+                    error_msg = "文件格式不正确，请确保包含以下列:\n"
+                    error_msg += "\n".join(required_columns)
+                    QMessageBox.warning(self, "警告", error_msg)
                     return None
 
                 # 收集数据
                 for index, row in df.iterrows():
                     data_item = {
-                        'dataset_id': self.dataset_id,
-                        'title': str(row['title']),
-                        'answer': str(row['answer']),
-                        'tags': str(row['tags']),
-                        'status': DataStatus.ENABLED
+                        'data_type': DataType.get_value_by_label(row['data_type (数据分类)']),
+                        'context': row['context (上下文)'],
+                        'question': row['question (问题)'],
+                        'answer': row['answer (答案)'],
+                        'question_type': QuestionType.get_value_by_label(row['question_type (题型)']),
+                        'question_label': QuestionLabel.get_value_by_label(row['question_label (问题标签)'])
                     }
                     data_list.append(data_item)
                 
@@ -321,13 +405,19 @@ class ImportDialog(QDialog):
             try:
                 # 创建示例数据
                 template_data = {
-                    'index': [1, 2],  # 序号列，示例数据为1和2,
-                    'title': ['如何使用Python进行数据分析?', '机器学习的基本步骤是什么?'],
+                    'index': [1],  # 序号列
+                    'data_type': ['文本'],  # 数据分类
+                    'context': [
+                        '在软件开发和数据分析领域中，Python是一个强大的编程语言。'
+                    ],  # 上下文
+                    'question': [
+                        '如何使用Python进行数据分析?'
+                    ],  # 问题
                     'answer': [
-                        'Python数据分析主要使用pandas、numpy等库。基本步骤包括:\n1. 数据导入\n2. 数据清洗\n3. 数据分析\n4. 数据可视化',
-                        '机器学习的基本步骤包括:\n1. 数据收集和预处理\n2. 特征工程\n3. 模型选择和训练\n4. 模型评估\n5. 模型优化'
-                    ],
-                    'tags': ['Python,数据分析,pandas', '机器学习,AI,模型训练']
+                        'Python数据分析主要使用pandas、numpy等库。基本步骤包括:\n1. 数据导入\n2. 数据清洗\n3. 数据分析\n4. 数据可视化'
+                    ],  # 答案
+                    'question_type': ['问答题'],  # 题型
+                    'question_label': ['数学,文字理解,Rag召回']  # 问题标签
                 }
                 
                 # 创建DataFrame
@@ -343,9 +433,12 @@ class ImportDialog(QDialog):
                 
                 # 设置列宽
                 worksheet.set_column('A:A', 10)  # 序号列
-                worksheet.set_column('B:B', 40)  # 标题列
-                worksheet.set_column('C:C', 60)  # 答案列
-                worksheet.set_column('D:D', 30) # 标签列
+                worksheet.set_column('B:B', 20)  # 数据分类列
+                worksheet.set_column('C:C', 40)  # 上下文列
+                worksheet.set_column('D:D', 40)  # 问题列
+                worksheet.set_column('E:E', 60)  # 答案列
+                worksheet.set_column('F:F', 20)  # 题型列
+                worksheet.set_column('G:G', 30)  # 问题标签列
                 
                 # 添加列说明
                 header_format = workbook.add_format({
@@ -355,10 +448,39 @@ class ImportDialog(QDialog):
                     'bg_color': '#D9D9D9'
                 })
                 
-                worksheet.write(0, 3, 'tags (标签)', header_format)
-                worksheet.write(0, 2, 'answer (答案内容)', header_format)
-                worksheet.write(0, 1, 'title (问题标题)', header_format)
                 worksheet.write(0, 0, '序号', header_format)
+                worksheet.write(0, 1, 'data_type (数据分类)', header_format)
+                worksheet.write(0, 2, 'context (上下文)', header_format)
+                worksheet.write(0, 3, 'question (问题)', header_format)
+                worksheet.write(0, 4, 'answer (答案)', header_format)
+                worksheet.write(0, 5, 'question_type (题型)', header_format)
+                worksheet.write(0, 6, 'question_label (问题标签)', header_format)
+
+                # 设置数据验证下拉列表
+                data_type_list = ['文本', '图片', '音频', '视频']
+                question_type_list = ['选择题', '判断题', '问答题']
+                question_label_list = ['数学', '文字理解', 'Rag召回']
+
+                # 为数据分类列添加下拉列表
+                worksheet.data_validation('B2:B1048576', {
+                    'validate': 'list',
+                    'source': data_type_list,
+                    'error_message': '请从下拉列表中选择有效的数据分类'
+                })
+
+                # 为题型列添加下拉列表
+                worksheet.data_validation('F2:F1048576', {
+                    'validate': 'list',
+                    'source': question_type_list,
+                    'error_message': '请从下拉列表中选择有效的题型'
+                })
+
+                # 为问题标签列添加下拉列表
+                worksheet.data_validation('G2:G1048576', {
+                    'validate': 'list',
+                    'source': question_label_list,
+                    'error_message': '请从下拉列表中选择有效的问题标签'
+                })
                 
                 # 保存文件
                 writer.close()

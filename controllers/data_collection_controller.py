@@ -1,6 +1,7 @@
 from functools import partial
 from itertools import count
 from PySide6.QtCore import QObject, Slot
+from models.eum import DataType, QuestionLabel, QuestionType
 from utils.database import DatabaseManager
 from utils.logger import get_logger
 from views.dataset.data_collection_view import DataCollectionView
@@ -159,7 +160,7 @@ class DataCollectionController(QObject):
     def show_import_dialog(self, collection_id):
         """处理导入请求"""
         dialog = ImportDialog(self.view, collection_id)
-        dialog.update_import_table()
+        # dialog.update_import_table()
         dialog.import_confirmed.connect(lambda datas:self.import_data(collection_id, datas))
         dialog.exec()
 
@@ -172,9 +173,12 @@ class DataCollectionController(QObject):
             with DatabaseManager.get_session() as session:
                 for data in datas:
                     data['collection_id'] = collection_id
-                    data['title'] = data.get('title', '')
-                    data['tag'] = data.get('tag', '')
+                    data['data_type'] = data.get('data_type', '')
+                    data['context'] = data['context'] if data.get('context', '') else ''
+                    data['question'] = data['question']
                     data['answer'] = data.get('answer', '')
+                    data['quesiton_type'] = data['question_type']
+                    data['question_label'] = data['question_label']
                     DataModel.add_data(session, data, collection_id)
                     session.commit()
                 # 更新数据集的 content_size 字段

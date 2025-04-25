@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QGridLayout, QHBoxLayout, Q
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont, QColor,QIntValidator
 from models import dataset_son_model
+from models.eum import DataType, QuestionLabel, QuestionType
 from utils.logger import get_logger
 from models.data_collection_model import DataCollectionModel
 from models.dataset_son_model import DataModel
@@ -108,230 +109,288 @@ class DataCollectionDetailsDialog(QDialog):
         # 4. 分页区域
         pagination_widget = self.create_pagination_widget()
         main_layout.addWidget(pagination_widget)
-        # 5. 按钮区域
-        button_widget = self.create_button_widget()
-        main_layout.addWidget(button_widget)
+        # # 5. 按钮区域
+        # button_widget = self.create_button_widget()
+        # main_layout.addWidget(button_widget)
         
         # 初始加载数据
         self.load_table_data()
-        
+
     def create_top_info_widget(self):
         """创建顶部信息区域 - 字段名与值同行展示 + 横向布局"""
-        widget = QWidget()
-        widget.setStyleSheet("""
-            QWidget {
-                background-color: white;
+        top_info_frame = QFrame()
+        top_info_frame.setObjectName("topInfoFrame")
+        top_info_frame.setStyleSheet("""
+            #topInfoFrame {
+                background-color: #ffffff;
                 border-radius: 8px;
-                padding: 16px;
-                border: 1px solid #E5E7EB;
+                border: 1px solid #eaeaea;
+                padding: 2px;
             }
         """)
-        
-        main_layout = QVBoxLayout(widget)
-        main_layout.setContentsMargins(16, 16, 16, 16)
-        main_layout.setSpacing(16)
-        
-        # 标题区域
-        title_widget = QWidget()
-        title_layout = QHBoxLayout(title_widget)
-        title_layout.setContentsMargins(0, 0, 0, 0)
-        
+
+        main_layout = QVBoxLayout(top_info_frame)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(12)
+
+        # ===== 顶部标题 =====
         title_label = QLabel("数据集详情")
         title_label.setStyleSheet("""
             QLabel {
                 font-size: 18px;
                 font-weight: bold;
                 color: #1F2937;
-                padding-bottom: 4px;
                 border-bottom: 2px solid #3B82F6;
+                padding: 0; 
+                margin: 0;
             }
         """)
-        title_label.setFixedHeight(30)
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-        main_layout.addWidget(title_widget)
-        
-        # 信息卡片区域（字段名 + 值 在同一行）
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFixedHeight(50)
+
+        main_layout.addWidget(title_label)
+
+        # ===== 字段信息区域 =====
         info_card = QWidget()
         info_card.setStyleSheet("""
             QWidget {
-                background-color: #F9FAFB;
+                background-color: white;
+                border: 1px solid #eaeaea;
                 border-radius: 6px;
-                padding: 12px;
+                padding: 8px;
             }
         """)
-        
-        h_layout = QHBoxLayout(info_card)
-        h_layout.setContentsMargins(12, 12, 12, 12)
-        h_layout.setSpacing(40)  # 字段之间的间距
-        
+
+        fields_layout = QHBoxLayout(info_card)
+        fields_layout.setContentsMargins(8, 8, 8, 8)
+        fields_layout.setSpacing(40)
+
         fields = [
-            ("项目名称", self.data_collection.project_name or "无"),
+            ("所属项目", self.data_collection.project_name or "无"),
             ("数据集名称", self.data_collection.collection_name or "无")
         ]
-        
-        field_style = """
-            QLabel {
-                font-size: 14px;
-                font-family: 'Microsoft YaHei';
-            }
-        """
-        label_color = "color: #6B7280;"  # 灰色（标签）
-        value_color = "color: #111827;"  # 深色（值）
 
         for label_text, value_text in fields:
-            field_layout = QHBoxLayout()
-            field_layout.setSpacing(4)
+            field_container = QWidget()
+            field_layout = QHBoxLayout(field_container)
+            field_container.setStyleSheet("""
+                QWidget {
+                    border: none;
+                    margin: 0;
+                }
+            """)
+            field_layout.setContentsMargins(0, 0, 0, 0)
+            field_layout.setSpacing(6)
 
             label = QLabel(f"{label_text}:")
-            label.setStyleSheet(field_style + label_color)
+            label.setStyleSheet("""
+                QLabel {
+                    font-size: 14px;
+                    color: #6B7280;
+                    font-family: 'Microsoft YaHei';
+                    border: none;
+                    margin: 0;
+                }
+            """)
+
             value = QLabel(value_text)
-            value.setStyleSheet(field_style + value_color)
+            value.setStyleSheet("""
+                QLabel {
+                    font-size: 14px;
+                    color: #111827;
+                    font-family: 'Microsoft YaHei';
+                    border: none;
+                    margin: 0;
+                }
+            """)
 
             field_layout.addWidget(label)
-            field_layout.addWidget(value)            
-            field_container = QWidget()
-            field_container.setLayout(field_layout)
-            h_layout.addWidget(field_container)
-            h_layout.addStretch()
+            field_layout.addWidget(value)
+            fields_layout.addWidget(field_container)
+            fields_layout.addStretch()
 
-        h_layout.addStretch()
+        # fields_layout.addStretch()
         main_layout.addWidget(info_card)
 
-        return widget
-    # def create_top_info_widget(self):
-    #     """创建顶部信息区域"""
-    #     widget = QWidget()
-    #     widget.setStyleSheet("""
-    #         background-color: white;
-    #         border-radius: 8px;
-    #         padding: 0;
-    #     """)
-        
-    #     layout = QVBoxLayout(widget)
-    #     layout.setContentsMargins(0, 0, 0, 0)
-    #     layout.setSpacing(12)
-        
-    #     # 标题
-    #     title_label = QLabel("数据集详情")
-    #     title_label.setStyleSheet("""
-    #         QLabel {
-    #             font-size: 18px;
-    #             font-weight: bold;
-    #             color: #1F2937;
-    #             padding-bottom: 8px;
-    #         }
-    #     """)
-    #     layout.addWidget(title_label)
-        
-    #     # 基本信息网格布局
-    #     grid_layout = QGridLayout()
-    #     grid_layout.setContentsMargins(0, 0, 0, 0)
-    #     grid_layout.setHorizontalSpacing(40)
-    #     grid_layout.setVerticalSpacing(12)
-        
-    #     # 项目名称
-    #     project_label = QLabel("所属项目:")
-    #     project_value = QLabel(self.data_collection.project_name or "无")
-        
-    #     # 数据集名称
-    #     dataset_label = QLabel("数据集名称:")
-    #     dataset_value = QLabel(self.data_collection.collection_name or "无")
-        
-    #     # 设置字体样式
-    #     label_style = "color: #6B7280; font-weight: 500;"
-    #     value_style = "color: #111827;"
-        
-    #     for label in [project_label, dataset_label]:
-    #         label.setStyleSheet(label_style)
-    #         label.setFont(QFont("Microsoft YaHei", 11))
-            
-    #     for value in [project_value, dataset_value]:
-    #         value.setStyleSheet(value_style)
-    #         value.setFont(QFont("Microsoft YaHei", 11))
-        
-    #     # 添加到网格布局
-    #     grid_layout.addWidget(project_label, 0, 0)
-    #     grid_layout.addWidget(project_value, 0, 1)
-    #     grid_layout.addWidget(dataset_label, 0, 2)
-    #     grid_layout.addWidget(dataset_value, 0, 3)
-        
-    #     layout.addLayout(grid_layout)
-        
-    #     return widget
-    
+        return top_info_frame
+   
     def create_filter_widget(self):
-        """创建筛选区域"""
-        widget = QWidget()
-        widget.setStyleSheet("""
-            background-color: white;
-            border-radius: 8px;
-            padding: 16px;
+        """创建筛选区域 - 单行布局 & 控件高度统一"""
+        filter_frame = QFrame()
+        filter_frame.setObjectName("filterFrame")
+        filter_frame.setStyleSheet("""
+            #filterFrame {
+                background-color: #ffffff;
+                border-radius: 8px;
+                border: 1px solid #eaeaea;
+                padding: 4px;
+            }
         """)
-        
-        layout = QHBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
-        
-        # 数据类型筛选
-        type_label = QLabel("数据类型:")
-        type_combo = QComboBox()
-        type_combo.addItem("全部", "")
-        type_combo.addItem("文本", "1")
-        type_combo.addItem("图片", "2")
-        type_combo.addItem("音频", "3")
-        type_combo.addItem("视频", "4")
-        
-        # 问题类型筛选
-        question_type_label = QLabel("问题类型:")
-        question_type_combo = QComboBox()
-        question_type_combo.addItem("全部", "")
-        question_type_combo.addItem("选择题", "1")
-        question_type_combo.addItem("填空题", "2")
-        question_type_combo.addItem("问答题", "3")
-        
-        
-        # 日期范围
-        self.date_start = QDateEdit()
-        self.date_start.setCalendarPopup(True)
-        self.date_start.setDisplayFormat("yyyy-MM-dd")
-        self.date_start.setDate(QDate.currentDate().addMonths(-1))
 
-        self.date_end = QDateEdit()
-        self.date_end.setCalendarPopup(True)
-        self.date_end.setDisplayFormat("yyyy-MM-dd")
-        self.date_end.setDate(QDate.currentDate())
-        
+        layout = QHBoxLayout(filter_frame)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        # 通用样式定义
+        COMMON_HEIGHT = 24
+        common_style = f"""
+            font-family: 'Microsoft YaHei';
+            font-size: 14px;
+            color: #333;
+            background: white;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            padding: 6px ;
+            min-height: {COMMON_HEIGHT}px;
+        """
+
+        combo_style = f"""
+            QComboBox {{
+                {common_style}
+                min-width: 100px;
+            }}
+            QComboBox:hover {{
+                border-color: #c0c4cc;
+            }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 20px;
+                border: none;
+            }}
+            QComboBox::down-arrow {{
+                image: url(utils/img/down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }}
+        """
+
+        date_style = f"""
+            QDateEdit {{
+                {common_style}
+                min-width: 120px;
+            }}
+            QDateEdit::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 20px;
+                border: none;
+            }}
+            QDateEdit::down-arrow {{
+                image: url(utils/img/down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }}
+        """
+
+        button_style = """
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                padding: 0;
+                min-height: 40px;
+                min-width: 40px;
+            }
+            QPushButton:hover {
+                cursor: pointer;
+            }
+            QPushButton:pressed {
+                padding: 4px;
+            }
+        """
+
+        # 数据分类
+        label_style="""
+            font-family: 'Microsoft YaHei';
+            font-size: 14px;
+            color: #6B7280;
+            background: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px ;
+            min-height: 24px;
+        """
+        data_type_label = QLabel("数据分类:")
+        data_type_label.setStyleSheet(label_style)
+        layout.addWidget(data_type_label)
+        self.type_combo = QComboBox()
+        self.type_combo.addItem("全部",None)
+        for item in DataType:
+            self.type_combo.addItem(item.display,item.value)
+        self.type_combo.setStyleSheet(combo_style)
+        layout.addWidget(self.type_combo)
+        layout.addStretch()
+
+        # 题型
+        question_type_label = QLabel("题型:")
+        question_type_label.setStyleSheet(label_style)
+        layout.addWidget(question_type_label)
+        self.question_type_combo = QComboBox()
+        self.question_type_combo.addItem("全部",None)
+        for item in QuestionType:
+            self.question_type_combo.addItem(item.display,item.value)
+        self.question_type_combo.setStyleSheet(combo_style)
+        layout.addWidget(self.question_type_combo)
+        layout.addStretch()
+
+        #标签
+        question_tag_label = QLabel("标签:")
+        question_tag_label.setStyleSheet(label_style)
+        layout.addWidget(question_tag_label)
+        self.tag_filter_combo = QComboBox()
+        self.tag_filter_combo.addItem("全部",None)
+        for item in QuestionLabel:
+            self.tag_filter_combo.addItem(item.display,item.value)
+        self.tag_filter_combo.setStyleSheet(combo_style)
+        layout.addWidget(self.tag_filter_combo)
+        layout.addStretch()
+
+        # 日期范围
+        created_time_label = QLabel("创建时间:")
+        created_time_label.setStyleSheet(label_style)
+        layout.addWidget(created_time_label)
+        self.start_date_edit = QDateEdit(QDate.currentDate().addMonths(-1))
+        self.start_date_edit.setDisplayFormat("yyyy-MM-dd")
+        self.start_date_edit.setCalendarPopup(True)
+        self.start_date_edit.setStyleSheet(date_style)
+        layout.addWidget(self.start_date_edit)
+
+        layout.addWidget(QLabel("至"))
+
+        self.end_date_edit = QDateEdit(QDate.currentDate())
+        self.end_date_edit.setDisplayFormat("yyyy-MM-dd")
+        self.end_date_edit.setCalendarPopup(True)
+        self.end_date_edit.setStyleSheet(date_style)
+        layout.addWidget(self.end_date_edit)
+        layout.addStretch()
+
         # 搜索按钮
-        search_btn = QPushButton("搜索")
+        search_btn = QPushButton()
         search_btn.setObjectName("searchBtn")
         search_btn.setProperty("class", "primary")
-        
+        search_btn.setStyleSheet(button_style + """
+            QPushButton {
+                image: url(utils/img/search.png);
+            }
+        """)
+        layout.addWidget(search_btn)
+
         # 重置按钮
-        reset_btn = QPushButton("重置")
+        reset_btn = QPushButton()
         reset_btn.setObjectName("resetBtn")
         reset_btn.setProperty("class", "secondary")
-        
-        # 添加控件到布局
-        layout.addWidget(type_label)
-        layout.addWidget(type_combo)
-        layout.addWidget(question_type_label)
-        layout.addWidget(question_type_combo)
-        layout.addStretch(1)
-        layout.addWidget(search_btn)
+        reset_btn.setStyleSheet(button_style + """
+            QPushButton {
+                image: url(utils/img/reset.png);
+            }
+        """)
         layout.addWidget(reset_btn)
-        
-        # 保存引用
-        self.type_combo = type_combo
-        self.question_type_combo = question_type_combo
-        self.search_btn = search_btn
-        self.reset_btn = reset_btn
-        
-        # 连接信号
+
+        # 信号连接
         search_btn.clicked.connect(self.on_search_clicked)
         reset_btn.clicked.connect(self.on_reset_clicked)
-        
-        return widget
+
+        return filter_frame
     
     def create_table_widget(self):
         """创建表格区域"""
@@ -359,7 +418,8 @@ class DataCollectionDetailsDialog(QDialog):
         self.data_table.setAlternatingRowColors(True)
         self.data_table.setColumnCount(7)
 
-        headers = ["序号", "数据类型", "上下文", "问题", "答案", "问题类型", "标签"]
+        # 调整列的顺序，将问题类型列置于数据分类之后
+        headers = ["序号", "数据分类", "题型", "上下文", "问题", "答案", "问题标签"]
         self.data_table.setHorizontalHeaderLabels(headers)
         self.data_table.verticalHeader().setVisible(False)   # 隐藏垂直表头
         self.data_table.setEditTriggers(QTableWidget.NoEditTriggers)  # 禁用编辑
@@ -369,7 +429,6 @@ class DataCollectionDetailsDialog(QDialog):
 
         # 表头设置
         header = self.data_table.horizontalHeader() 
-        header.setFont(QFont("Microsoft YaHei", 12, QFont.Medium))
         header.setObjectName("tableHeader")
 
         header.setStyleSheet("""
@@ -384,23 +443,22 @@ class DataCollectionDetailsDialog(QDialog):
                 border: none;
                 border-bottom: 2px solid #e0e0e0;
                 border-left: 1px solid #e0e0e0;
-                border-top: 1px solid #e0e0e0;
-                border-right: 1px solid #e0e0e0;
-                padding: 0;
+                padding: 10px 12px;
                 font-family: "Microsoft YaHei";
-                font-size: 14pt;
+                font-size: 13px;
                 font-weight: 500;
                 qproperty-alignment: AlignCenter;
             }
         """)
+        header.setFont(QFont("Microsoft YaHei", 12, QFont.Medium))
 
         header.setStretchLastSection(False)  
         header.setSectionResizeMode(0, QHeaderView.Fixed)
         header.setSectionResizeMode(1, QHeaderView.Fixed)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.Fixed)
         header.setSectionResizeMode(3, QHeaderView.Stretch)
         header.setSectionResizeMode(4, QHeaderView.Stretch)
-        header.setSectionResizeMode(5, QHeaderView.Fixed)
+        header.setSectionResizeMode(5, QHeaderView.Stretch)
         header.setSectionResizeMode(6, QHeaderView.Fixed)
 
         # 表格样式设置        
@@ -427,12 +485,12 @@ class DataCollectionDetailsDialog(QDialog):
         """)
 
         # 设置列宽
-        self.data_table.setColumnWidth(0, 40) # 序号列
+        self.data_table.setColumnWidth(0, 80) # 序号列
         self.data_table.setColumnWidth(1, 80)  # 数据类型列
-        self.data_table.setColumnWidth(2, 200)  # 上下文列
-        self.data_table.setColumnWidth(3, 200)  # 问题列
-        self.data_table.setColumnWidth(4, 200)  # 答案列
-        self.data_table.setColumnWidth(5, 80)  # 问题类型
+        self.data_table.setColumnWidth(2, 80)  # 问题类型列
+        self.data_table.setColumnWidth(3, 200)  # 上下文列
+        self.data_table.setColumnWidth(4, 200)  # 问题列
+        self.data_table.setColumnWidth(5, 200)  # 答案列
         self.data_table.setColumnWidth(6, 80)  # 标签列
 
         table_layout.addWidget(self.data_table)
@@ -440,60 +498,115 @@ class DataCollectionDetailsDialog(QDialog):
         return table_container
 
     def create_pagination_widget(self):
-        """创建分页区域"""
-        widget = QWidget()
-        widget.setStyleSheet("""
-            QWidget {
-                background-color: white;
+        """设置分页区域"""
+        pagination_frame = QFrame()
+        pagination_frame.setStyleSheet("""
+            QFrame {
+                background-color: #fff;
                 border-radius: 8px;
-                padding: 12px 16px;
-            }
-            QLabel {
-                color: #6B7280;
+                border: 1px solid #eaeaea;
+                padding: 4px;
+                min-height: 30px;
             }
         """)
-        
-        layout = QHBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
-        
-        # 分页信息
-        self.page_info_label = QLabel("共 0 条数据，第 0/0 页")  # 初始化为默认值
-        self.page_info_label.setFont(QFont("Microsoft YaHei", 10))
-        
-        # 分页按钮
-        self.prev_page_btn = QPushButton("上一页")
-        self.prev_page_btn.setProperty("class", "secondary")
-        self.prev_page_btn.setDisabled(True)
-        
-        self.next_page_btn = QPushButton("下一页")
-        self.next_page_btn.setProperty("class", "secondary")
-        self.next_page_btn.setDisabled(True)
-        
-        # 页码输入
-        self.page_input = QLineEdit()
-        self.page_input.setPlaceholderText("页码")
-        self.page_input.setFixedWidth(60)
-        self.page_input.setValidator(QIntValidator(1, 9999))
-        
-        self.go_page_btn = QPushButton("跳转")
-        self.go_page_btn.setProperty("class", "secondary")
-        
-        # 添加到布局
-        layout.addWidget(self.page_info_label)
-        layout.addStretch(1)
-        layout.addWidget(self.prev_page_btn)
-        layout.addWidget(self.next_page_btn)
-        layout.addWidget(QLabel("跳转到:"))
-        layout.addWidget(self.page_input)
-        layout.addWidget(self.go_page_btn)
-        
-        # 连接信号
-        self.prev_page_btn.clicked.connect(self.on_prev_page)
-        self.next_page_btn.clicked.connect(self.on_next_page)
-        self.go_page_btn.clicked.connect(self.on_go_page)
-        
-        return widget
+
+        pagination_layout = QHBoxLayout(pagination_frame)
+        pagination_layout.setContentsMargins(8, 8, 8, 8) 
+        pagination_layout.setSpacing(12)
+
+        # 总条数
+        self.total_label = QLabel("共 0 条")
+        self.total_label.setStyleSheet("font-size: 14px; color: #666;border: none;")
+
+        # 分页控件
+        self.prev_btn = QPushButton()
+        base_style = """
+            QPushButton {
+                background-color: transparent;
+                color: #666;
+                border: none;
+                border-radius: 4px;
+                padding: 0;
+                min-width: 40px;
+                min-height: 40px;
+            }
+            QPushButton:hover {
+                color: #1890ff;
+                border-color: #1890ff;
+                cursor: pointer;
+            }
+            QPushButton:disabled {
+                color: #ccc;
+                border-color: #eee;
+            }
+            QPushButton:pressed {
+                padding: 2px;
+            }
+        """
+        self.prev_btn.setStyleSheet(base_style+"""
+            QPushButton {
+                image: url(utils/img/left_arrow.png);
+                width: 12px;
+                height: 12px;
+            }
+        """)
+
+        self.next_btn = QPushButton()
+        self.next_btn.setStyleSheet(base_style+"""
+            QPushButton {
+                image: url(utils/img/right_arrow.png);
+                width: 12px;
+                height: 12px;
+            }            
+        """)
+
+        # 页码选择
+        self.page_combo = QComboBox()
+        self.page_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #d9d9d9;
+                border-radius: 4px;
+                padding: 6px;
+                min-width: 80px;
+                text-align: center;
+            }
+            QComboBox:hover {
+                border-color: #c0c4cc;
+            }
+            QComboxBox:focus {
+                border-color: #1890ff;
+                box-shadow: 0 0 3px rgba(24, 144, 255, 0.3);
+            }
+            QComboBox:on {
+                background: transparent;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 20px;
+                border: none;
+
+            }
+            QComboBox::down-arrow {
+                image:url(utils/img/down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }
+        """)
+
+        self.page_szie = QLabel("每页 10 条")
+        self.page_szie.setStyleSheet(self.total_label.styleSheet()  )
+
+        pagination_layout.addWidget(self.total_label)
+        pagination_layout.addStretch()
+        pagination_layout.addWidget(self.prev_btn)
+        pagination_layout.addWidget(self.page_combo)
+        pagination_layout.addWidget(self.next_btn)
+        pagination_layout.addStretch()
+        pagination_layout.addWidget(self.page_szie)
+
+
+        return pagination_frame
 
     def create_button_widget(self):
         """创建按钮区域"""
@@ -510,21 +623,48 @@ class DataCollectionDetailsDialog(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
+        button_style = """
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                padding: 0;
+                min-height: 50px;
+                min-width: 50px;
+            }
+            QPushButton:hover {
+                cursor: pointer;
+            }
+            QPushButton:pressed {
+                padding: 4px;
+            }
+        """
+
         # 确定按钮
-        self.confirm_btn = QPushButton("确定")
+        self.confirm_btn = QPushButton()
         self.confirm_btn.setObjectName("confirmBtn")
         self.confirm_btn.setProperty("class", "primary")
+        self.confirm_btn.setStyleSheet(button_style + """
+            QPushButton {
+                image: url(utils/img/confirm.png);
+            }
+        """)
         # 取消按钮
-        self.cancel_btn = QPushButton("取消")
+        self.cancel_btn = QPushButton()
         self.cancel_btn.setObjectName("cancelBtn")
         self.cancel_btn.setProperty("class", "secondary")
+        self.cancel_btn.setStyleSheet(button_style + """
+            QPushButton {
+                image: url(utils/img/cancel.png);
+            }
+        """)
         # 添加到布局
         layout.addStretch(1)
         layout.addWidget(self.confirm_btn)
         layout.addWidget(self.cancel_btn)
+        layout.addStretch(1)
         # 连接信号
         # self.confirm_btn.clicked.connect(self.on_confirm)
-        # self.cancel_btn.clicked.connect(self.on_cancel)
+        self.cancel_btn.clicked.connect(self.reject)
         return widget
     
     def load_table_data(self):
@@ -537,6 +677,7 @@ class DataCollectionDetailsDialog(QDialog):
             filters = {
                 "data_type": self.type_combo.currentData(),
                 "question_type": self.question_type_combo.currentData(),
+                "tag": self.tag_filter_combo.currentData(),
                 "page": self.current_page,
                 "per_page": self.per_page
             }
@@ -547,7 +688,8 @@ class DataCollectionDetailsDialog(QDialog):
                         collection_id=int(self.collection_id),
                         session=session,
                         page=self.current_page,
-                        per_page=10
+                        per_page=10,
+                        filters=filters
                     )
 
             # 处理空数据状态
@@ -573,8 +715,12 @@ class DataCollectionDetailsDialog(QDialog):
                 index_item.setTextAlignment(Qt.AlignCenter)
                 
                 # 数据类型列
-                data_type_item = QTableWidgetItem(data.get('data_type', ''))
+                data_type_item = QTableWidgetItem(DataType.display_of(data.get('data_type', '')))
                 data_type_item.setTextAlignment(Qt.AlignCenter)
+                
+                # 问题类型列
+                question_type_item = QTableWidgetItem(QuestionType.display_of(data.get('question_type', '')))
+                question_type_item.setTextAlignment(Qt.AlignCenter)
                 
                 # 上下文列（限制长度并添加省略号）
                 context = data.get('context', '')
@@ -594,21 +740,17 @@ class DataCollectionDetailsDialog(QDialog):
                     answer = answer[:100] + "..."
                 answer_item = QTableWidgetItem(answer)
                 
-                # 问题类型列
-                question_type_item = QTableWidgetItem(data.get('question_type', ''))
-                question_type_item.setTextAlignment(Qt.AlignCenter)
-                
                 # 标签列
-                label_item = QTableWidgetItem(data.get('question_label', ''))
+                label_item = QTableWidgetItem(QuestionLabel.display_of(data.get('question_label', '')))
                 label_item.setTextAlignment(Qt.AlignCenter)
                 
                 # 设置所有项
                 self.data_table.setItem(row, 0, index_item)
                 self.data_table.setItem(row, 1, data_type_item)
-                self.data_table.setItem(row, 2, context_item)
-                self.data_table.setItem(row, 3, question_item)
-                self.data_table.setItem(row, 4, answer_item)
-                self.data_table.setItem(row, 5, question_type_item)
+                self.data_table.setItem(row, 2, question_type_item)
+                self.data_table.setItem(row, 3, context_item)
+                self.data_table.setItem(row, 4, question_item)
+                self.data_table.setItem(row, 5, answer_item)
                 self.data_table.setItem(row, 6, label_item)
 
             # 更新分页信息
@@ -626,14 +768,19 @@ class DataCollectionDetailsDialog(QDialog):
     
     def update_pagination_info(self, total_items, current_page, total_pages):
         """更新分页信息"""
-        self.page_info_label.setText(f"共 {total_items} 条数据，当前第 {current_page}/{total_pages} 页")
+        self.total_label.setText(f"共 {total_items} 条")
+        
+        # 更新页码下拉框
+        self.page_combo.blockSignals(True)
+        self.page_combo.clear()
+        if total_pages > 0:
+            self.page_combo.addItems([str(i) for i in range(1, total_pages + 1)])
+            self.page_combo.setCurrentText(str(current_page))
+        self.page_combo.blockSignals(False)
         
         # 更新按钮状态
-        self.prev_page_btn.setDisabled(current_page <= 1)
-        self.next_page_btn.setDisabled(current_page >= total_pages)
-        
-        # 清空页码输入
-        self.page_input.clear()
+        self.prev_btn.setEnabled(current_page > 1)
+        self.next_btn.setEnabled(current_page < total_pages)
     
     def on_search_clicked(self):
         """搜索按钮点击事件"""
@@ -644,7 +791,7 @@ class DataCollectionDetailsDialog(QDialog):
         """重置按钮点击事件"""
         self.type_combo.setCurrentIndex(0)
         self.question_type_combo.setCurrentIndex(0)
-        self.search_input.clear()
+        self.tag_filter_combo.setCurrentIndex(0)
         self.current_page = 1
         self.load_table_data()
     
@@ -658,15 +805,6 @@ class DataCollectionDetailsDialog(QDialog):
         """下一页"""
         self.current_page += 1
         self.load_table_data()
-    
-    def on_go_page(self):
-        """跳转到指定页"""
-        page = self.page_input.text()
-        if page and page.isdigit():
-            page_num = int(page)
-            if page_num >= 1:
-                self.current_page = page_num
-                self.load_table_data()
     
     def on_export_clicked(self):
         """导出数据"""

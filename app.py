@@ -80,10 +80,10 @@ def main():
 
     # 创建各页面
     home_view = HomeView()
-    dataset_view = DataCollectionView() # 创建数据集页面
+    data_collection_view = DataCollectionView() # 创建数据集页面
 
     # 添加页面到主窗口
-    main_window.add_page(dataset_view, "数据集管理")
+    main_window.add_page(data_collection_view, "数据集管理")
     main_window.add_page(home_view, "首页")
 
 
@@ -91,7 +91,7 @@ def main():
     main_controller = MainController(main_window)
 
     # 创建数据集控制器，负责数据集页面逻辑
-    data_collection_controller = DataCollectionController(dataset_view) # 实例化控制器
+    data_collection_controller = DataCollectionController(data_collection_view) # 实例化控制器
 
 
     # 显示主窗口
