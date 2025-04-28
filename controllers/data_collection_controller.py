@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 from views.dataset.data_collection_dialog import DataCollectionDialog
 from views.dataset.data_collection_details_dialog import DataCollectionDetailsDialog
 from views.dataset.import_dialog import ImportDialog
-from models.dataset_son_model import DataModel
+from models.data_collection_son_model import DataModel
 from functools import partial
 
 
@@ -38,6 +38,8 @@ class DataCollectionController(QObject):
         self.view.import_signal.connect(self.show_import_dialog)
         self.view.delete_signal.connect(self.handle_delete)
         self.view.delete_confirm_signal.connect(self.delete_data_collection)
+        # self.view.prev_page_signal.connect(self.handle_page_change)
+        # self.view.next_page_signal.connect(self.handle_page_change)
 
     @Slot()
     def load_initial_data(self):
@@ -49,14 +51,15 @@ class DataCollectionController(QObject):
         logger.info("加载数据")
         try:
             with DatabaseManager.get_session() as session:
-                data_collections, total, pages = DataCollectionModel.get_paginated_data_collections(
+                data_collections, total_items, total_pages = DataCollectionModel.get_paginated_data_collections(
                     session,
                     page=self.current_page,
                     per_page=self.items_per_page,
                     filters=filtes
                 )
                 logger.info(f"data_collections:{data_collections}")
-                self.view.update_table(data_collections, total, self.current_page, pages)
+                self.view.update_table(data_collections, total_items, self.current_page, total_pages)
+                print(f"total_items:{total_items},total_pages:{total_pages},self.current_page:{self.current_page}")
         except Exception as e:
             self.logger.error(f"加载数据失败: {e}")
             self.view.show_error("错误", "加载数据失败")
@@ -78,7 +81,8 @@ class DataCollectionController(QObject):
     @Slot()
     def handle_reset(self):
         """处理重置请求"""
-        # 重置所有过滤器
+        # 重置所有过滤器  
+        self.current_page = 1
         self.load_data()
 
     @Slot(str)
@@ -174,28 +178,21 @@ class DataCollectionController(QObject):
                 for data in datas:
                     data['collection_id'] = collection_id
                     data['data_type'] = data.get('data_type', '')
-                    data['context'] = data['context'] if data.get('context', '') else ''
-                    data['question'] = data['question']
+                    data['context'] = data.get('context', '') if data.get('context', '') else ''
+                    data['question'] = data.get('question', '')
                     data['answer'] = data.get('answer', '')
-                    data['quesiton_type'] = data['question_type']
-                    data['question_label'] = data['question_label']
+                    data['quesiton_type'] = data.get('quesiton_type', '')
+                    data['question_label'] = data.get('question_label', '')
                     DataModel.add_data(session, data, collection_id)
                     session.commit()
-                # 更新数据集的 content_size 字段
-                data_collection = DataCollectionModel.get_data_collection_by_id(session, collection_id)
-                content_size = len(DataModel.get_all_data(session, collection_id=collection_id))                
-                data_collection.content_size = content_size
-                session.commit()
                 self.view.show_message("提示", "数据导入成功")
-
                 self.load_data()
                 
         except Exception as e:
             self.logger.error(f"导入数据失败: {e}")
-            self.view.show_error("错误", "导入数据失败")
+            self.view.show_error("错误", f"导入数据失败: {e}")
         finally:
             DatabaseManager.remove_session()
-
 
     @Slot(str)
     def handle_delete(self, collection_id):
@@ -224,6 +221,20 @@ class DataCollectionController(QObject):
     @Slot(int)
     def handle_page_change(self, page):
         """处理页码变化"""
-        if page != self.current_page:
-            self.current_page = page
-            self.load_data()
+        print(f"Changing page: {self.current_page} -> {page}")
+        self.current_page = page
+        self.load_data()
+
+    # @Slot(int)
+    # def handle_prev_page(self, page):
+    #     """处理上一页请求"""
+    #     if page > 1:
+    #         self.current_page = page - 1
+    #         self.load_data()
+
+    # @Slot(int)
+    # def handle_next_page(self, page):
+    #     """处理下一页请求"""
+    #     if page < self.view.total_pages:
+    #         self.current_page = page + 1
+    #         self.load_data()

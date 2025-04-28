@@ -1,10 +1,10 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 from configparser import ConfigParser
 from utils.logger import get_logger
 import os
 
-logger = get_logger()
+logger = get_logger("database")
 
 class DatabaseManager:
     # 数据库引擎实例
@@ -93,3 +93,55 @@ class DatabaseManager:
             cls._session_factory = None
             cls._scoped_session = None
             logger.info("数据库引擎已释放。")
+
+    @classmethod
+    def initialize_database(cls):
+        """初始化数据库并创建表结构（仅当表不存在时）"""
+        try:
+            cls.initialize_engine()
+            engine = cls.get_engine()
+            if not engine:
+                logger.error("数据库引擎初始化失败")
+                return False
+
+            with engine.connect() as conn:
+                # 创建数据库（如果不存在）
+                conn.execute(text("CREATE DATABASE IF NOT EXISTS testPlatform"))
+                conn.execute(text("USE testPlatform"))
+                
+                # 获取执行顺序（解决外键依赖）
+                sql_files = [
+                    'create_t_data_collections.sql',
+                    'create_t_data_collection_info.sql',
+                    'create_t_data_attachment.sql'
+                ]
+                
+                # 检查已存在表
+                existing_tables = {t[0] for t in 
+                    conn.execute(text("SHOW TABLES")).fetchall()}
+                
+                # 按顺序执行建表SQL
+                for sql_file in sql_files:
+                    table_name = sql_file[7:-4]  # 移除'create_'和'.sql'
+                    
+                    if table_name not in existing_tables:
+                        sql_path = os.path.join('utils/sql', sql_file)
+                        try:
+                            with open(sql_path, 'r', encoding='utf-8') as f:
+                                sql = f.read().strip()
+                                if sql:
+                                    logger.info(f"正在创建表: {table_name}")
+                                    conn.execute(text(sql))
+                        except Exception as e:
+                            logger.error(f"执行 {sql_file} 失败: {str(e)}")
+                            raise
+                    else:
+                        logger.debug(f"表 {table_name} 已存在，跳过创建")
+                
+                conn.commit()
+                logger.info("数据库表结构初始化完成")
+                return True
+                
+        except Exception as e:
+            logger.critical(f"数据库初始化失败: {str(e)}", exc_info=True)
+            return False

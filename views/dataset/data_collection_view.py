@@ -6,14 +6,14 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QComboBox, QDateEdit, QGridLayout, QFrame,
     QSpacerItem, QSizePolicy, QHeaderView
 )
-from PySide6.QtCore import Qt, QDate, Signal
+from PySide6.QtCore import Qt, QDate, Signal, QSize
 from PySide6.QtGui import QIcon, QColor, QFont, QPalette
 from functools import partial
 from sqlalchemy import true
 from utils.database import DatabaseManager
 from utils.logger import get_logger
 from views.dataset import data_collection_details_dialog
-from models.dataset_son_model import DataModel
+from models.data_collection_son_model import DataModel
 
 logger = get_logger("dataset_view")
 
@@ -29,9 +29,14 @@ class DataCollectionView(QWidget):
     import_signal = Signal(str)       # 导入数据信号，传递ID
     delete_signal = Signal(str)       # 删除数据集信号，传递ID
     delete_confirm_signal = Signal(str) # 删除确认信号, 传递ID
+    prev_page_signal = Signal(int)
+    next_page_signal = Signal(int)
 
     def __init__(self):
         super().__init__()
+        self.current_page = 1
+        self.per_page = 10
+        self.total_pages = 0
         self.setup_ui()
         self.setup_connections()
 
@@ -68,10 +73,10 @@ class DataCollectionView(QWidget):
         # 导出按钮点击时发射导出信号
         self.export_button.clicked.connect(self.export_signal.emit)
         # 分页控件信号连接
-        self.prev_btn.clicked.connect(lambda: self.page_changed_signal.emit(self.current_page() - 1))
-        self.next_btn.clicked.connect(lambda: self.page_changed_signal.emit(self.current_page() + 1))
-        self.page_combo.currentTextChanged.connect(lambda: self.page_changed_signal.emit(self.current_page()))
-        # self.page_size_combo.currentTextChanged.connect(lambda: self.page_size_changed_signal.emit(int(self.page_size_combo.currentText())))
+        self.prev_btn.clicked.connect(self.prev_page_signal_emit)
+        self.next_btn.clicked.connect(self.next_page_signal_emit)
+        # self.prev_btn.clicked.connect(lambda _,current_page=self.current_page: self.prev_page_signal.emit(max(1,self.current_page - 1)))
+        # self.next_btn.clicked.connect(lambda _,current_page=self.current_page: self.next_page_signal.emit(min(self.total_pages,self.current_page + 1)))
 
     def emit_query_signal(self):
         """收集筛选条件并发射查询信号"""
@@ -341,7 +346,7 @@ class DataCollectionView(QWidget):
         """)
 
         action_layout.addWidget(self.insert_button)
-        action_layout.addWidget(self.export_button)
+        # action_layout.addWidget(self.export_button)
         action_layout.addStretch()
 
         parent_layout.addLayout(action_layout)
@@ -370,7 +375,7 @@ class DataCollectionView(QWidget):
 
         table_layout = QVBoxLayout(table_frame)
         table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(0)
+        table_layout.setSpacing(6)
 
         # 创建表格
         self.dataset_table = QTableWidget()
@@ -397,14 +402,14 @@ class DataCollectionView(QWidget):
                 border-left: 1px solid #e0e0e0;
                 padding: 10px 12px;
                 font-family: "Microsoft YaHei";
-                font-size: 13px;
+                font-size: 14px;
                 font-weight: 500;
                 qproperty-alignment: AlignCenter;
             }
         """)
         
         # 字体设置
-        header_font = QFont("Microsoft YaHei", 12, QFont.Medium)
+        header_font = QFont("Microsoft YaHei", 14, QFont.Medium)
         header.setFont(header_font)
         
         # 列宽设置（自适应+固定结合）
@@ -414,7 +419,7 @@ class DataCollectionView(QWidget):
         header.setSectionResizeMode(3, QHeaderView.Fixed)  # 内容量
         header.setSectionResizeMode(4, QHeaderView.Fixed)  # 时间
         
-        self.dataset_table.setColumnWidth(0, 80)   # 序号
+        self.dataset_table.setColumnWidth(0, 60)   # 序号
         self.dataset_table.setColumnWidth(1, 150)  # 所属项目
         self.dataset_table.setColumnWidth(3, 80)  # 内容量
         self.dataset_table.setColumnWidth(4, 150)  # 时间
@@ -452,7 +457,7 @@ class DataCollectionView(QWidget):
         self.dataset_table.setEditTriggers(QTableWidget.NoEditTriggers)  # 不可编辑
         self.dataset_table.setAlternatingRowColors(True)  # 交替行颜色
         self.dataset_table.verticalHeader().setVisible(False)   # 隐藏垂直表头
-        self.dataset_table.verticalHeader().setDefaultSectionSize(42)  # 行高
+        self.dataset_table.verticalHeader().setDefaultSectionSize(44)  # 行高
         
         # 启用平滑滚动
         self.dataset_table.setVerticalScrollMode(QTableWidget.ScrollPerPixel) 
@@ -469,20 +474,47 @@ class DataCollectionView(QWidget):
                 background-color: #fff;
                 border-radius: 8px;
                 border: 1px solid #eaeaea;
-                padding: 4px;
+                padding: 4pxpx;
+                min-height: 30px;
             }
         """)
 
         pagination_layout = QHBoxLayout(pagination_frame)
-        pagination_layout.setContentsMargins(8, 8, 8, 8)
-        pagination_layout.setSpacing(12)
+        pagination_layout.setContentsMargins(8, 4, 8, 4) 
+        pagination_layout.setSpacing(8)
 
-        # 总条数
+        # 总条数显示
         self.total_label = QLabel("共 0 条")
-        self.total_label.setStyleSheet("font-size: 14px; color: #666;border: none;")
+        self.total_label.setStyleSheet("font-size: 14px; color: #555; border: none; padding:6px;")
+        pagination_layout.addWidget(self.total_label)
+        pagination_layout.addStretch()
 
-        # 分页控件
+        # 上一页按钮
         self.prev_btn = QPushButton()
+        self.prev_btn.setFixedSize(24, 24)
+        self.prev_btn.setStyleSheet(self.page_button_style())
+        self.prev_btn.setIcon(QIcon("utils/img/left.png"))
+        self.prev_btn.setIconSize(QSize(24, 24))
+        pagination_layout.addWidget(self.prev_btn)
+
+        # 页码按钮容器
+        self.page_buttons = []
+        self.page_button_container = QHBoxLayout()
+        self.page_button_container.setSpacing(4)
+        pagination_layout.addLayout(self.page_button_container)
+
+        # 下一页按钮
+        self.next_btn = QPushButton()
+        self.next_btn.setFixedSize(24, 24)
+        self.next_btn.setStyleSheet(self.page_button_style())
+        self.next_btn.setIcon(QIcon("utils/img/right.png"))
+        self.next_btn.setIconSize(QSize(24, 24))
+        pagination_layout.addWidget(self.next_btn)
+
+        parent_layout.addWidget(pagination_frame)
+    
+    def page_button_style(self, active=False):
+        """设置分页按钮样式"""
         base_style = """
             QPushButton {
                 background-color: transparent;
@@ -490,114 +522,55 @@ class DataCollectionView(QWidget):
                 border: none;
                 border-radius: 4px;
                 padding: 0;
-                min-width: 60px;
-                min-height: 30px;
-            }
-            QPushButton:hover {
-                color: #1890ff;
-                border-color: #1890ff;
-                cursor: pointer;
+                min-width: 24px;
+                min-height: 24px;
             }
             QPushButton:disabled {
                 color: #ccc;
-                border-color: #eee;
             }
             QPushButton:pressed {
-                padding: 2px;
+                padding: 2px 0 0 2px;
             }
         """
-        self.prev_btn.setStyleSheet(base_style+"""
-            QPushButton {
-                image: url(utils/img/left_arrow.png);
-                width: 12px;
-                height: 12px;
-            }
-        """)
+        if active:
+            return base_style + """
+                QPushButton {
+                    background-color: #fff;
+                    color: #1e90ff;
+                    font-weight: bold;
+                }
+            """
+        else:
+            return base_style + """
+                QPushButton {
+                    background-color: #fff;
+                }
+            """
 
-        self.next_btn = QPushButton()
-        self.next_btn.setStyleSheet(base_style+"""
-            QPushButton {
-                image: url(utils/img/right_arrow.png);
-                width: 12px;
-                height: 12px;
-            }            
-        """)
-
-        # 页码选择
-        self.page_combo = QComboBox()
-        self.page_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #d9d9d9;
-                border-radius: 4px;
-                padding: 6px;
-                min-width: 80px;
-                text-align: center;
-            }
-            QComboBox:hover {
-                border-color: #c0c4cc;
-            }
-            QComboxBox:focus {
-                border-color: #1890ff;
-                box-shadow: 0 0 3px rgba(24, 144, 255, 0.3);
-            }
-            QComboBox:on {
-                background: transparent;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: right center;
-                width: 20px;
-                border: none;
-
-            }
-            QComboBox::down-arrow {
-                image:url(utils/img/down_arrow.png);
-                width: 12px;
-                height: 12px;
-            }
-        """)
-
-        self.page_szie = QLabel("每页 10 条")
-        self.page_szie.setStyleSheet(self.total_label.styleSheet()  )
-
-        pagination_layout.addWidget(self.total_label)
-        pagination_layout.addStretch()
-        pagination_layout.addWidget(self.prev_btn)
-        pagination_layout.addWidget(self.page_combo)
-        pagination_layout.addWidget(self.next_btn)
-        pagination_layout.addStretch()
-        pagination_layout.addWidget(self.page_szie)
-
-
-        parent_layout.addWidget(pagination_frame)
-
-    def current_page(self):
-        """获取当前页码"""
-        return int(self.page_combo.currentText())
+    # def current_page(self):
+    #     """获取当前页码"""
+    #     return int(self.page_combo.currentText())
 
     def update_table(self, data_collections, total_items, current_page, total_pages):
-        """更新表格数据"""
-        print(f"更新表格数据: {data_collections}")
-        self.dataset_table.setRowCount(0)
+        """更新表格数据和分页信息"""
+        self.current_page = current_page
+        self.total_pages = total_pages
+        self.dataset_table.setRowCount(0)  # 清空表格
         self.dataset_table.setRowCount(len(data_collections))
         with DatabaseManager().get_session() as session:
             for row, data_collection in enumerate(data_collections):
                 # 填充数据
                 # 第一列默认填充序号，且固定为 1-10
-                self.dataset_table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
+                index_item = QTableWidgetItem(str(row + 1))
+                index_item.setTextAlignment(Qt.AlignCenter) # 添加居中对齐
+                self.dataset_table.setItem(row, 0, index_item)
+
                 self.dataset_table.setItem(row, 1, QTableWidgetItem(data_collection.get("project_name", "")))
                 self.dataset_table.setItem(row, 2, QTableWidgetItem(data_collection.get("collection_name", "")))
-                
-                # status_item = QTableWidgetItem(data_collection.get("status", ""))
-                # status_item.setTextAlignment(Qt.AlignCenter)
-                # self.dataset_table.setItem(row, 3, status_item)
-                
-                # size_item = QTableWidgetItem(str(dataset.get("content_size", "")))
-                # size_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                # self.dataset_table.setItem(row, 3, size_item)
+            
                 collections = DataModel.get_all_data(session, collection_id=data_collection.get("collection_id", ""))
                 size_item = QTableWidgetItem(str(len(collections)) if collections else "0")
-                size_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                size_item.setTextAlignment(Qt.AlignCenter)
                 self.dataset_table.setItem(row, 3, size_item)
                 
                 time_item = QTableWidgetItem(data_collection.get("created_time", ""))
@@ -609,6 +582,7 @@ class DataCollectionView(QWidget):
                 print(f"collection_id: {data_collection.get('collection_id', '')}")
 
         # 更新分页信息
+        self.total_pages = total_pages
         self.update_pagination(total_items, current_page, total_pages)
 
     def add_action_buttons(self, row, collection_id):
@@ -711,19 +685,131 @@ class DataCollectionView(QWidget):
 
         self.reset_signal.emit()
 
+    # def update_pagination(self, total_items, current_page, total_pages):
+    #     """更新分页控件状态"""
+    #     self.total_label.setText(f"共 {total_items} 条")
+    #     # self.page_szie.setText(f"每页 10 条/共 {total_pages} 页")
+        
+    #     # # 更新页码下拉框
+    #     # self.page_combo.blockSignals(True)
+    #     # self.page_combo.clear()
+    #     # if total_pages > 0:
+    #     #     self.page_combo.addItems([str(i) for i in range(1, total_pages + 1)])
+    #     #     self.page_combo.setCurrentText(str(current_page))
+    #     # self.page_combo.blockSignals(False)
+    #     for btn in self.page_buttons:
+    #         btn.setParent(None)
+    #     self.page_buttons.clear()
+
+    #     # 添加页码按钮
+    #     for i in range(1, total_pages + 1):
+    #         btn = QPushButton(str(i))
+    #         btn.setStyleSheet(self.page_button_style(i == current_page))
+    #         btn.clicked.connect(lambda _, page=i: self.page_changed_signal.emit(int(page)))
+    #         self.page_button_container.addWidget(btn)
+    #         self.page_buttons.append(btn)
+        
+    #     # 更新按钮状态
+    #     self.prev_btn.setEnabled(current_page > 1)
+    #     self.next_btn.setEnabled(current_page < total_pages)
+
     def update_pagination(self, total_items, current_page, total_pages):
-        """更新分页控件状态"""
+        """更新分页信息，确保超过 8 页时固定为 8 个按钮"""
         self.total_label.setText(f"共 {total_items} 条")
-        
-        # 更新页码下拉框
-        self.page_combo.blockSignals(True)
-        self.page_combo.clear()
-        if total_pages > 0:
-            self.page_combo.addItems([str(i) for i in range(1, total_pages + 1)])
-            self.page_combo.setCurrentText(str(current_page))
-        self.page_combo.blockSignals(False)
-        
-        # 更新按钮状态
+
+        while self.page_button_container.count():
+            item = self.page_button_container.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+        self.page_buttons.clear()
+
+        if total_pages <= 0:
+            return
+
+        # 分页显示规则
+        max_buttons = 9  # 固定 8 个分页按钮
+        boundary_count = 1  # 首页和尾页显示数量
+        around_count = 2    # 当前页前后显示的数量
+
+        # 根据当前页计算需要显示的分页按钮
+        def get_pages():
+            pages = set()
+
+            # 首页、尾页
+            pages.update(range(1, min(boundary_count + 1, total_pages + 1)))
+            pages.update(range(max(total_pages - boundary_count + 1, 1), total_pages + 1))
+
+            # 当前页附近
+            if total_pages < max_buttons:
+                pages.update(range(1, total_pages + 1))
+            else:
+                if current_page <= around_count + boundary_count:
+                    pages.update(range(1, around_count + boundary_count + 4))
+                elif current_page >= total_pages - around_count - boundary_count:
+                    pages.update(range(total_pages - around_count - boundary_count - 2, total_pages + 1))
+                else:
+                    pages.update(range(max(current_page - around_count, 1), min(current_page + around_count + 1, total_pages + 1)))
+
+            return sorted(pages)
+
+        page_list = get_pages()
+
+        # 根据总页数和当前页动态计算分页按钮
+        final_pages = []
+        prev_page = None
+
+        # 插入省略号（'...'）
+        for page in page_list:
+            if prev_page is not None and page - prev_page > 1:
+                if prev_page < current_page:
+                    final_pages.append("prev_ellipsis")  # 使用字符串表示省略号，而不是 None
+                else:
+                    final_pages.append("next_ellipsis")  # 使用字符串表示省略号，而不是 None
+                # final_pages.append("...")  # 使用字符串表示省略号，而不是 None
+            final_pages.append(page)
+            prev_page = page
+
+        # 如果分页按钮数量超过 8，固定展示 8 个按钮
+        if len(final_pages) > max_buttons:
+            # 保留首页和尾页
+            first_pages = final_pages[:2]  # 首页部分
+            last_pages = final_pages[-2:]  # 尾页部分
+
+            # 当前页附近的页码
+            middle_pages = final_pages[2:-2]
+
+            # 限制为最多 8 个按钮
+            middle_pages = middle_pages[:max_buttons - 4]  # 留出两位首页，尾页，和省略号
+
+            final_pages = first_pages + middle_pages + last_pages
+
+        # 创建分页按钮
+        for page in final_pages:
+            if page == "prev_ellipsis":
+                # 省略号
+                ellipsis = QPushButton("···")
+                ellipsis.setStyleSheet(self.page_button_style())
+                ellipsis.setFixedSize(24, 24)
+                ellipsis.clicked.connect(lambda _, current_page=current_page: self.page_changed_signal.emit(max(1,current_page - 5))) # 前省略号
+                self.page_button_container.addWidget(ellipsis)
+            elif page == "next_ellipsis":
+                # 省略号
+                ellipsis = QPushButton("···")
+                ellipsis.setStyleSheet(self.page_button_style()) # Replace with your actual image path
+                ellipsis.setFixedSize(24, 24)
+                ellipsis.clicked.connect(lambda _, current_page=current_page: self.page_changed_signal.emit(min(total_pages, current_page + 5))) # 后省略号
+                self.page_button_container.addWidget(ellipsis)
+            else:
+                # 分页按钮
+                btn = QPushButton(str(page))
+                btn.setFixedSize(24, 24)
+                btn.setStyleSheet(self.page_button_style(active=(page == current_page)))
+                btn.clicked.connect(lambda _, page=page: self.page_changed_signal.emit(page))
+                self.page_buttons.append(btn)
+                self.page_button_container.addWidget(btn)
+
+        # 更新上一页/下一页状态
         self.prev_btn.setEnabled(current_page > 1)
         self.next_btn.setEnabled(current_page < total_pages)
 
@@ -764,4 +850,14 @@ class DataCollectionView(QWidget):
         
         return msg_box.exec() == QMessageBox.Yes
 
-    
+    def prev_page_signal_emit(self):
+        if self.current_page > 1:
+            new_page = self.current_page - 1
+            print(f"[按钮点击] 当前页: {self.current_page} -> 上一页: {new_page}")
+            self.page_changed_signal.emit(new_page)
+            
+    def next_page_signal_emit(self):
+        if self.current_page < self.total_pages:
+            new_page = self.current_page + 1
+            print(f"[按钮点击] 当前页: {self.current_page} -> 下一页: {new_page}")
+            self.page_changed_signal.emit(new_page)

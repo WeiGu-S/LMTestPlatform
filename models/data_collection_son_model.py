@@ -8,9 +8,10 @@ import math
 from utils.logger import get_logger
 from datetime import datetime, timezone, timedelta
 from models.eum import DataType, QuestionType, QuestionLabel
+import uuid
 
 Base = declarative_base()
-logger = get_logger("dataset_son_model")
+logger = get_logger("data_collection_son_model")
 
 class DataStatus(enum.Enum):
     DISABLED = "停用"
@@ -164,6 +165,7 @@ class DataModel(Base):
     @classmethod
     def add_data(cls, session, datas, collection_id):
         """添加新数据"""
+        data_type = datas.get('data_type')
         question = datas.get('question')
         answer = datas.get('answer')
         question_label = datas.get('question_label')
@@ -172,12 +174,14 @@ class DataModel(Base):
         # 创建新数据集
         try:
             new_data = DataModel(
+                data_id=str(uuid.uuid4().int)[:20] ,
                 collection_id=collection_id,
+                data_type=data_type,
+                question_type=question_type,
                 context=context,
                 question=question,
                 answer=answer,
-                question_type=QuestionType(question_type),
-                question_label=QuestionLabel(question_label),
+                question_label=question_label,
                 del_flag=0,
                 created_time=datetime.now(timezone(timedelta(hours=8))),
                 created_by=datas.get('created_by'),

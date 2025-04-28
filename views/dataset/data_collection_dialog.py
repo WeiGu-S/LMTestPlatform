@@ -33,21 +33,59 @@ class DataCollectionDialog(QDialog):
         # self.resize(450, 380)
 
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 24, 24, 24)
+        main_layout.setContentsMargins(12, 24, 12, 24)
         main_layout.setSpacing(8)
 
-        main_layout.addStretch(1)    
+        self.init_title_area(main_layout,self.mode)
+        # main_layout.addStretch(1)    
         self.init_form_area(main_layout)
-        main_layout.addStretch(1)
+        # main_layout.addStretch(1)
         self.init_button_area(main_layout)
 
+    def init_title_area(self, parent_layout, mode="insert"):
+        title_frame = QFrame()
+        title_frame.setStyleSheet("""
+            QFrame {
+                background-color: #f8f9fb;
+                border:none;
+                border-radius: 6px;
+            }
+        """)
+        # title_frame.setFrameShape(QFrame.StyledPanel)
+        title_layout = QHBoxLayout(title_frame) # 使用水平布局
+        # title_layout.setContentsMargins(0)
+        title_layout.setSpacing(0)
+        if mode=="insert":
+            title_label = QLabel("创建数据集")
+        else:
+            title_label = QLabel("修改数据集")
+        title_label.setProperty("class", "title")
+        # 设置字体样式
+        title_label.setStyleSheet("""
+            QLabel {
+                font-size: 24px;
+                font-weight: 600;
+                color: #1f2329;
+            }
+        """)
+        title_layout.addStretch()
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+
+        parent_layout.addWidget(title_frame)
     def init_form_area(self, parent_layout):
         form_frame = QFrame()
-        form_frame.setFrameShape(QFrame.StyledPanel)
+        form_frame.setStyleSheet("""
+            QFrame {
+                background-color: #ffffff;
+                border: none;
+                border-radius: 6px;
+            }
+        """)
         form_layout = QGridLayout(form_frame)
         form_layout.setContentsMargins(12, 12, 12, 12)
-        form_layout.setHorizontalSpacing(20)
-        form_layout.setVerticalSpacing(20)
+        form_layout.setHorizontalSpacing(12)
+        form_layout.setVerticalSpacing(12)
 
         # 所属项目
         self.project_name_input = self.create_line_edit("请输入所属项目")
@@ -61,7 +99,13 @@ class DataCollectionDialog(QDialog):
 
     def init_button_area(self, parent_layout):
         button_frame = QFrame()
-        button_frame.setFrameShape(QFrame.StyledPanel)
+        button_frame.setStyleSheet("""
+            QFrame {
+                background-color: #ffffff;
+                border: none;
+
+            }
+        """)
         button_layout = QHBoxLayout(button_frame)
         button_frame.setStyleSheet("""
             QHBoxLayout {
@@ -119,6 +163,7 @@ class DataCollectionDialog(QDialog):
         line_edit.setMinimumSize(240, 36)
         line_edit.setMaxLength(255)
         line_edit.setProperty("class", "form-input")
+
         return line_edit
 
     def add_form_row(self, layout, row, label_text, widget):
@@ -177,13 +222,11 @@ class DataCollectionDialog(QDialog):
             }
 
             .form-input:hover {
-                border-color: #409eff;
-                box-shadow: 0 0 4px rgba(64, 158, 255, 0.2);
+                border-color: #409eff;            
             }
 
             .form-input:focus {
                 border-color: #409eff;
-                box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
             }
         """)
 
