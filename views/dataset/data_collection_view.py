@@ -553,6 +553,18 @@ class DataCollectionView(QWidget):
 
     def update_table(self, data_collections, total_items, current_page, total_pages):
         """更新表格数据和分页信息"""
+        # 处理空数据状态
+        if not data_collections:
+            self.dataset_table.setRowCount(1)
+            self.dataset_table.setSpan(0, 0, 1, self.dataset_table.columnCount())
+            no_data_item = QTableWidgetItem("暂无数据")
+            no_data_item.setTextAlignment(Qt.AlignCenter)
+            self.dataset_table.setItem(0, 0, no_data_item)
+
+            self.update_pagination(0, 1, 1)
+            self.prev_btn.setDisabled(True)
+            self.next_btn.setDisabled(True)
+            return
         self.current_page = current_page
         self.total_pages = total_pages
         self.dataset_table.setRowCount(0)  # 清空表格

@@ -21,19 +21,20 @@
 pip install -r requirements.txt
 ```
 3. 配置数据库连接信息（config/database.ini）
-
+``` 数据库启动后，会自动创建数据库并根据 utils/sql 目录下的 sql 文件建表
+    如有新增表，可在 utils/sql 目录下新增 sql 文件，文件名格式为：create_xxx.sql，并在 utils/databases.py 中添加对应的建表文件名
+```
 ## 使用说明
 
-1. 运行主程序：
+1. 运行主程序
 ```bash
 python app.py
 ```
 2. 通过GUI界面进行各项操作
-
-## 开发依赖
-
-- PySide6 6.7.0
-- SQLAlchemy 2.0.28
-- PyMySQL 1.1.0
-
-## 贡献指南
+```
+```
+3. 开发模式
+```bash
+python utils/debug_runner.py
+``` 
+    utils/debug_runner.py可实时监控文件变化，方便开发调试

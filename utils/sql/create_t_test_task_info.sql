@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS `t_test_task_info` (
+  `task_id` VARCHAR(20) NOT NULL COMMENT '任务ID',
+  `task_name` VARCHAR(200) COMMENT '任务名称',
+  `collection_id` VARCHAR(20) COMMENT '测试数据集ID',
+  `collection_name` VARCHAR(20) COMMENT '数据集名称',
+  `project_name` VARCHAR(20) COMMENT '所属项目',
+  `config_id` VARCHAR(20) COMMENT '大模型ID',
+  `url` VARCHAR(200) COMMENT 'URL信息',
+  `key_info` VARCHAR(200) COMMENT 'APIKEY信息',
+  `model_file` BLOB COMMENT '模型文件',
+  `concurrency` SMALLINT UNSIGNED COMMENT '测试并发数据',
+  `test_context` TEXT COMMENT '上下文',
+  `question_label` SMALLINT UNSIGNED COMMENT '问题标签',
+  `created_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `created_by` VARCHAR(20) COMMENT '创建人ID',
+  `updated_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `updated_by` VARCHAR(20) COMMENT '更新人ID',
+  `del_flag` TINYINT UNSIGNED DEFAULT 0 COMMENT '删除标志位(0未删除1删除)',
+  PRIMARY KEY (`task_id`),
+  UNIQUE KEY (`task_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='测试任务表';

@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS `t_data_collection_info` (
   `data_id` VARCHAR(20) NOT NULL COMMENT '数据ID',
   `collection_id` VARCHAR(20) NOT NULL COMMENT '数据集ID',
   `data_type` SMALLINT UNSIGNED COMMENT '数据分类: 数据字典：文本、图片、音频、视频等',
-  `content` TEXT COMMENT '上下文',
+  `context` TEXT COMMENT '上下文',
   `question` VARCHAR(500) COMMENT '问题',
   `answer` VARCHAR(500) COMMENT '答案',
   `question_type` SMALLINT UNSIGNED COMMENT '题型: 数据字典：选择题、判断题、问答题等',

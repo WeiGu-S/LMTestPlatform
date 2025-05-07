@@ -206,7 +206,7 @@ class DataModel(Base):
             datas = session.query(cls).filter(cls.collection_id == collection_id).first()
             return datas
         except Exception as e:
-            logger.error(f"获取数据集时出错 (ID: {collection_id}): {e}", exc_info=True)
+            logger.error(f"获取数据时出错 (ID: {collection_id}): {e}", exc_info=True)
             session.rollback()
             return None
     # @classmethod

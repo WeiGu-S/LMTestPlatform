@@ -32,7 +32,7 @@ class DatabaseManager:
         try:
             # 获取MySQL配置参数
             params = config['mysql']
-            db_url = f"mysql+pymysql://{params['user']}:{params['password']}@{params['host']}:{params.getint('port', 3306)}/{params['database']}?charset=utf8mb4"
+            db_url = f"mysql+pymysql://{params['user']}:{params['password']}@{params['host']}:{params.getint('port', 3306)}"
             cls._engine = create_engine(db_url, echo=False) # 设置echo=True用于调试SQL
             cls._session_factory = sessionmaker(bind=cls._engine)
             # 使用scoped_session进行线程本地会话管理，常用于web/GUI应用
@@ -106,14 +106,25 @@ class DatabaseManager:
 
             with engine.connect() as conn:
                 # 创建数据库（如果不存在）
-                conn.execute(text("CREATE DATABASE IF NOT EXISTS testPlatform"))
+                # 检查数据库是否存在
+                if not conn.execute(text("SHOW DATABASES LIKE 'testPlatform'")).fetchone():
+                    logger.info("数据库不存在，正在创建...")
+                    conn.execute(text("CREATE DATABASE testPlatform"))
+                    logger.info("创建数据库: testPlatform")
                 conn.execute(text("USE testPlatform"))
                 
-                # 获取执行顺序（解决外键依赖）
-                sql_files = [
+                # 如需创建其他表，请在这里添加
+                sql_dir = [
                     'create_t_data_collections.sql',
                     'create_t_data_collection_info.sql',
-                    'create_t_data_attachment.sql'
+                    'create_t_data_attachment.sql',
+                    'create_t_lm_config.sql',
+                    'create_t_test_task_info.sql',
+                    'create_t_test_data_snapshot.sql',
+                    'create_t_test_attachment_snapshot.sql',
+                    'create_t_test_task_info.sql',
+                    'create_t_test_round_info.sql',
+                    'create_t_dictionary.sql'
                 ]
                 
                 # 检查已存在表
@@ -121,7 +132,7 @@ class DatabaseManager:
                     conn.execute(text("SHOW TABLES")).fetchall()}
                 
                 # 按顺序执行建表SQL
-                for sql_file in sql_files:
+                for sql_file in sql_dir:
                     table_name = sql_file[7:-4]  # 移除'create_'和'.sql'
                     
                     if table_name not in existing_tables:

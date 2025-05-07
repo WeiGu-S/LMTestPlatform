@@ -9,8 +9,6 @@ CREATE TABLE IF NOT EXISTS `t_data_attachment` (
   `updated_by` VARCHAR(20) NOT NULL COMMENT '更新人',
   `del_flag` TINYINT UNSIGNED DEFAULT 0 COMMENT '删除标志位: 0未删除 1删除',
   PRIMARY KEY (`attachment_id`),
-  CONSTRAINT `fk_attachment_data` FOREIGN KEY (`data_id`) 
-    REFERENCES `t_data_collection_info` (`data_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_attachment_collection` FOREIGN KEY (`collection_id`) 
-    REFERENCES `t_data_collections` (`collection_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (`data_id`) REFERENCES `t_data_collection_info` (`data_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`collection_id`) REFERENCES `t_data_collections` (`collection_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='数据附件表';
