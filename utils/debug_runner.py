@@ -16,6 +16,8 @@ APP_SCRIPT = os.path.join(os.path.dirname(PROJECT_ROOT), 'app.py')
 WATCH_PATHS = [os.path.dirname(PROJECT_ROOT)]
 # 要监控的文件扩展名
 WATCH_EXTENSIONS = ['.py']
+# 要排除的目录
+EXCLUDE_DIRS = ['.venv', 'log']
 
 # 全局变量，用于存储当前运行的子进程
 current_process = None
@@ -55,6 +57,11 @@ class ChangeHandler(FileSystemEventHandler):
         file_path = event.src_path
         _, ext = os.path.splitext(file_path)
         
+        # 检查文件路径是否在排除目录中
+        for exclude_dir in EXCLUDE_DIRS:
+            if exclude_dir in file_path.split(os.path.sep):
+                return
+                
         # 检查是否是需要监控的文件类型，并且不是 debug_runner.py 本身
         if ext.lower() in WATCH_EXTENSIONS and os.path.basename(file_path) != os.path.basename(__file__):
             print(f"文件已修改：{file_path}。正在重启应用程序...")
@@ -71,6 +78,7 @@ if __name__ == "__main__":
         observer.schedule(event_handler, path, recursive=True)
     observer.start()
     print(f"正在监视以下目录的文件变化：{', '.join(WATCH_PATHS)}")
+    print(f"已排除以下目录：{', '.join(EXCLUDE_DIRS)}")
 
     try:
         while True:
