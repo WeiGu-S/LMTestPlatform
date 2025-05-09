@@ -59,7 +59,6 @@ class DataCollectionController(QObject):
                 )
                 logger.info(f"data_collections:{data_collections}")
                 self.view.update_table(data_collections, total_items, self.current_page, total_pages)
-                print(f"total_items:{total_items},total_pages:{total_pages},self.current_page:{self.current_page}")
         except Exception as e:
             self.logger.error(f"加载数据失败: {e}")
             self.view.show_error("错误", "加载数据失败")
@@ -222,6 +221,5 @@ class DataCollectionController(QObject):
     @Slot(int)
     def handle_page_change(self, page):
         """处理页码变化"""
-        print(f"Changing page: {self.current_page} -> {page}")
         self.current_page = page
         self.load_data()

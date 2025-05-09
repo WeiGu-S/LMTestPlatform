@@ -1,5 +1,5 @@
 from turtle import title
-from sqlalchemy import Column, Integer, String, DateTime, Enum as SQLAlchemyEnum, Index
+from sqlalchemy import Column, Integer, String, DateTime, Enum as SQLAlchemyEnum, Index, true
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -160,6 +160,14 @@ class DataModel(Base):
         question_label = datas.get('question_label')
         question_type = datas.get('question_type')
         context = datas.get('context')
+
+        if datas is None:
+            logger.error("数据集数据为空")
+            return None
+        # 校验上下文、问题、答案是否为空
+        if not context or not question or not answer:
+            logger.error("上下文、问题或答案为空")
+            return None
         # 创建新数据集
         try:
             new_data = DataModel(
@@ -254,19 +262,31 @@ class DataModel(Base):
             return False
 
     @classmethod
-    def update_data_collection(cls, session, collection_id, dataset_data):
+    def update_data(cls, session, data_id, datas):
         """更新数据"""    
-        if dataset_data.get('question'):
-            # 校验数据集名称是否已存在且未删除且非空
-            try:
-                existing_dataset = session.query(cls).filter(
-                    cls.question == dataset_data.get('question'),
-                    cls.del_flag == 0
-                ).first()
-                if existing_dataset and existing_dataset.id != collection_id:
-                    logger.error(f"数据集名称已存在: {dataset_data.get('question')}")
-                    return False
-            except Exception as e:
-                logger.error(f"查询数据集时出错 (数据集名称: {dataset_data.get('question')}): {e}", exc_info=True)
-                session.rollback()
-                return False
+        if not datas:
+            logger.error("数据集数据为空")
+            return None
+        try:
+            data = session.query(cls).filter(cls.data_id == data_id).first()
+            print(f"datas: {datas}")
+            if data:
+                # 直接访问对象属性进行赋值
+                data.data_type = datas.get('data_type')
+                data.question_type = datas.get('question_type')
+                data.context = datas.get('context')
+                data.question = datas.get('question')
+                data.answer = datas.get('answer')
+                data.question_label = datas.get('question_label')
+                data.updated_time = datetime.now(timezone(timedelta(hours=8)))
+                data.updated_by = datas.get('updated_by')
+                session.commit()
+                logger.info(f"已成功更新数据集 (ID: {data_id})")
+                return True
+            else:
+                logger.warning(f"数据集不存在 (ID: {data_id})")
+                return None
+        except Exception as e:
+            logger.error(f"更新数据集时出错 (ID: {data_id}): {e}", exc_info=True)
+            session.rollback()
+            return None

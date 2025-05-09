@@ -54,10 +54,7 @@ class DataController(QObject):
                     per_page=self.items_per_page,
                     filters=filtes
                 )
-                print(f"datas:{datas}")
-                print(f"filters:{filtes}")
                 self.view.load_table_data(datas, total_items, self.current_page, total_pages)
-                print(f"total_items:{total_items},total_pages:{total_pages},self.current_page:{self.current_page}")
         except Exception as e:
             self.logger.error(f"加载数据失败: {e}")
             self.view.show_message("error", "错误", "加载数据失败")
@@ -86,21 +83,18 @@ class DataController(QObject):
     @Slot(str)
     def show_data_operate_dialog(self, data_id=None):
         """显示数据对话框,处理新建和修改请求"""
-        print(f"对话框data_id:{data_id}")
         try:
             data = {}
+            data["collection_id"] = int(self.collection_id)
             mode = "insert"
             
             if data_id is not None:
-                with DatabaseManager.get_session() as session:
-                    data = DataModel.get_data_by_id(data_id)
-                    if not data:
-                        self.logger.warning(f"数据 {data_id} 不存在")
-                        self.view.show_message("error", "错误", "数据不存在")
-                        return
+                data = DataModel.get_data_by_id(data_id).to_dict()
+                if not data:
+                    self.logger.warning(f"数据 {data_id} 不存在")
+                    self.view.show_message("error", "错误", "数据不存在")
+                    return
                 mode = "edit"
-                data['collection_id'] = self.collection_id
-            # print(f"collection_id:{data['colletion_id']}")
             dialog = DataDialog(self.view, data=data, mode=mode)
             dialog.confirmed.connect(self.handle_data_operation)
             dialog.exec()
@@ -108,7 +102,7 @@ class DataController(QObject):
         except Exception as e:
             if data_id:
                 self.logger.error(f"获取数据 {data_id} 失败: {e}")
-                self.view.show_message("error", "错误", "获取数据集失败")
+                self.view.show_message("error", "错误", "获取数据失败")
 
     @Slot(dict)
     def handle_data_collection_operation(self, form_data):
@@ -150,6 +144,13 @@ class DataController(QObject):
     def handle_data_operation(self, form_data):
         """处理数据操作(新增/编辑)"""
         try:
+            # 验证必填字段
+            required_fields = ['context', 'question', 'answer']
+            for field in required_fields:
+                if not form_data.get(field):
+                    self.view.show_message("error", "错误", f"{field}不能为空")
+                    return
+
             with DatabaseManager.get_session() as session:
                 if form_data['mode'] == "insert":
                     try:
@@ -158,9 +159,9 @@ class DataController(QObject):
                             'data_type': form_data['data_type'],
                             'question_type': form_data['question_type'],
                             'question_label': form_data['question_label'],
-                            'context': form_data['context'],
-                            'question': form_data['question'],
-                            'answer': form_data['answer']
+                            'context': form_data['context'].strip(),
+                            'question': form_data['question'].strip(),
+                            'answer': form_data['answer'].strip()
                         }, self.collection_id)
                         session.commit()
                         self.view.show_message("info", "提示", "数据新增成功")
@@ -175,9 +176,11 @@ class DataController(QObject):
                             'data_type': form_data['data_type'],
                             'question_type': form_data['question_type'],
                             'question_label': form_data['question_label'],
-                            'context': form_data['context'],
-                            'question': form_data['question'],
-                            'answer': form_data['answer']
+                            'context': form_data['context'].strip(),
+                            'question': form_data['question'].strip(),
+                            'answer': form_data['answer'].strip(),
+                            'update_time': datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S'),
+                            'update_by': 'user'
                         })
                         self.view.show_message("info", "提示", "数据修改成功")
                     except Exception as update_error:
@@ -207,7 +210,6 @@ class DataController(QObject):
     @Slot(str)
     def handle_delete(self, data_id):
         """处理删除请求"""
-        print(f"删除data_id:{data_id}")
         self.view.ask_for_confirmation("删除数据集", f"确定要删除该数据吗？",data_id) 
 
     @Slot(str)
@@ -229,6 +231,6 @@ class DataController(QObject):
     @Slot(int)
     def handle_page_change(self, page):
         """处理页码变化"""
-        print(f"Changing page: {self.current_page} -> {page}")
+        logger.info(f"Changing page: {self.current_page} -> {page}")
         self.current_page = page
         self.load_data()

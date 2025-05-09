@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QLineEdit, QComboBox, QTextEdit, QFrame,
-    QPushButton, QSpacerItem, QSizePolicy
+    QPushButton, QSpacerItem, QSizePolicy, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QCursor
@@ -73,6 +73,7 @@ class DataCollectionDialog(QDialog):
         title_layout.addStretch()
 
         parent_layout.addWidget(title_frame)
+
     def init_form_area(self, parent_layout):
         form_frame = QFrame()
         form_frame.setStyleSheet("""
@@ -178,6 +179,12 @@ class DataCollectionDialog(QDialog):
     def emit_confirmed(self):
         form_data = self.get_form_data()
         form_data["mode"] = self.mode
+        if not self.project_name_input.text():
+            self.show_message("error", "错误", "所属项目不能为空")
+            return
+        if not self.name_input.text():
+            self.show_message("error", "错误", "数据集名称不能为空")
+            return
         if self.mode == 'edit' and self.data_collection:
             form_data["collection_id"] = self.data_collection.collection_id
         self.confirmed.emit(form_data)
@@ -229,3 +236,20 @@ class DataCollectionDialog(QDialog):
 
         self.confirm_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
+
+    def show_message(self, type, title, message):
+        """显示信息对话框"""
+        msg = QMessageBox()
+        msg.setStyleSheet("""
+            QMessageBox {
+                font-family: "Microsoft YaHei";
+                width: 300px;
+                height: 150px;
+            }
+        """)
+        if type == "error":
+            msg.critical(self, title, message)
+        elif type == "warning":
+            msg.warning(self, title, message)
+        else:
+            msg.information(self, title, message)

@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QGridLayout, QHBoxLayout, Q
                             QFormLayout, QLabel, QTableWidget, QTableWidgetItem, QPushButton,
                             QHeaderView, QFrame, QSpacerItem, QSizePolicy, QLineEdit, QComboBox,QDateEdit,QMessageBox)
 from PySide6.QtCore import Qt, QDate, QSize, Signal
-from PySide6.QtGui import QFont, QColor, QIntValidator, QIcon
+from PySide6.QtGui import QFont, QColor, QIntValidator, QIcon, QPixmap
 from controllers import data_controller
 from models import data_collection_son_model
 from models.enum import DataType, QuestionLabel, QuestionType
@@ -375,6 +375,7 @@ class DataCollectionDetailsDialog(QDialog):
         # 搜索按钮
         search_btn = QPushButton()
         search_btn.setObjectName("searchBtn")
+        search_btn.setCursor(Qt.PointingHandCursor)
         search_btn.setProperty("class", "primary")
         search_btn.setStyleSheet(button_style + """
             QPushButton {
@@ -386,6 +387,7 @@ class DataCollectionDetailsDialog(QDialog):
         # 重置按钮
         reset_btn = QPushButton()
         reset_btn.setObjectName("resetBtn")
+        reset_btn.setCursor(Qt.PointingHandCursor)
         reset_btn.setProperty("class", "secondary")
         reset_btn.setStyleSheet(button_style + """
             QPushButton {
@@ -710,8 +712,6 @@ class DataCollectionDetailsDialog(QDialog):
                 # 添加操作列按钮
 
                 self.add_action_buttons(row, str(data.get("data_id", "")))
-                print(f'生成按钮的data_id:{str(data.get("data_id", ""))}')
-
             # 更新分页信息
             self.total_pages = total_pages
             self.update_pagination_info(total_items, current_page, total_pages)
@@ -910,7 +910,7 @@ class DataCollectionDetailsDialog(QDialog):
 
         self.reset_signal.emit()
 
-    def show_message(self,type,title, message):
+    def show_message(self, type, title, message):
         """显示信息对话框"""
         msg = QMessageBox()
         msg.setStyleSheet("""
@@ -927,29 +927,74 @@ class DataCollectionDetailsDialog(QDialog):
         else:
             msg.information(self, title, message)
 
-    def ask_for_confirmation(self, title, message, data_id=None):
-        """显示删除确认对话框（修正信号连接问题）"""
+    def ask_for_confirmation(self, title, message, data_id):
+        """显示删除确认对话框"""
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
-        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setIconPixmap(QPixmap("utils/img/info.png"))  # 更合适大小
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg_box.setDefaultButton(QMessageBox.No)
-        
-        # 添加自定义样式
+
+        # 设置按钮文本与 objectName
+        yes_button = msg_box.button(QMessageBox.Yes)
+        no_button = msg_box.button(QMessageBox.No)
+        yes_button.setText("确认")
+        no_button.setText("取消")
+        yes_button.setObjectName("yesButton")
+        no_button.setObjectName("noButton")
+
+        # 设置样式表
         msg_box.setStyleSheet("""
             QMessageBox {
+                background-color: #ffffff;
                 font-family: "Microsoft YaHei";
-                width: 300px;
-                height: 150px;
+                border-radius: 8px;
+                padding: 6px;
+            }
+
+            QMessageBox QLabel {
+                color: #374151;
+                font-size: 14px;
+                line-height: 1.5em;
+                padding: 0;
+                min-width: 150px;
+            }
+
+            QMessageBox QPushButton {
+                min-width: 40px;
+                min-height: 24px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 6px;
+            }
+
+            QPushButton#yesButton {
+                background-color: #81D4FA;
+                color: #374151;
+                border: none;
+            }
+
+            QPushButton#yesButton:hover {
+                background-color: #05bbed;
+            }
+
+            QPushButton#noButton {
+                background-color: #F3F4F6;
+                color: #374151;
+                border: 1px solid #D1D5DB;
+            }
+
+            QPushButton#noButton:hover {
+                background-color: #E5E7EB;
             }
         """)
-        
-        # 连接确认信号
+
+        # 发射信号（只在用户点击“确认”时）
         if data_id is not None:
-            yes_button = msg_box.button(QMessageBox.Yes)
             yes_button.clicked.connect(lambda: self.data_delete_confirmed_signal.emit(str(data_id)))
-        
+
         return msg_box.exec() == QMessageBox.Yes
 
     def prev_page_signal_emit(self):

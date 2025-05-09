@@ -45,6 +45,7 @@ class DataCollectionModel(Base):
     updated_time = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
     updated_by = Column(String(20), nullable=True, comment='更新人')
     del_flag = Column(Integer, nullable=False, default=0, comment='删除标志位: 0未删除 1删除')
+
     def to_dict(self):
         """将模型实例转换为字典，便于视图层使用"""
         return {
@@ -265,7 +266,7 @@ class DataCollectionModel(Base):
                     cls.collection_name == collection_datas.get('collection_name'),
                     cls.del_flag == 0
                 ).first()
-                if existing_data_collection and existing_data_collection.id != collection_id:
+                if existing_data_collection and existing_data_collection.collection_id != collection_id:
                     logger.error(f"数据集名称已存在: {collection_datas.get('collection_name')}")
                     return False
                 # 更新数据集
@@ -273,6 +274,7 @@ class DataCollectionModel(Base):
                     data_collection = session.query(cls).filter(cls.collection_id == collection_id).first()
                     if data_collection:
                         data_collection.collection_name = collection_datas.get('collection_name')
+                        data_collection.project_name = collection_datas.get('project_name')
                         data_collection.updated_by = collection_datas.get('updated_by')
                         data_collection.updated_time = datetime.now(timezone(timedelta(hours=8)))  # 设置为中国时区(UTC+8)
                         session.commit()

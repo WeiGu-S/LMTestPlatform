@@ -1,12 +1,14 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QLineEdit, QComboBox, QTextEdit, QFrame,
-    QPushButton, QSpacerItem, QSizePolicy
+    QPushButton, QSpacerItem, QSizePolicy, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QCursor
 from utils.logger import get_logger
 from models.enum import QuestionType, QuestionLabel, DataType
+from models.data_collection_model import DataCollectionModel
+from utils.database import DatabaseManager
 
 logger = get_logger("data_dialog")
 
@@ -123,23 +125,31 @@ class DataDialog(QDialog):
         # 所属数据集名称
         self.dataset_input = self.create_line_edit("")
         self.add_form_row(form_layout, 0, "所属数据集:", self.dataset_input)
+        self.dataset_input.setDisabled(True)
+        self.dataset_input.setStyleSheet("""
+            QLineEdit {
+                color: #606266;
+                background: #f5f7fa;
+            }
+        """)
+        with DatabaseManager.get_session() as session:
+            # 设置所属数据集名称
+            dataset_name = DataCollectionModel.get_data_collection_by_id(session, int(self.data.get("collection_id", 0))).to_dict()["collection_name"]
+            self.dataset_input.setText(dataset_name)
         # 数据分类
         self.data_type_combo = QComboBox()
-        self.data_type_combo.addItem("全部", None)
         for item in DataType:
             self.data_type_combo.addItem(item.display,item.value)
         self.add_form_row(form_layout, 1, "数据分类:", self.data_type_combo)
         self.data_type_combo.setStyleSheet(combo_style)
         # 题型
         self.question_type_combo = QComboBox()
-        self.question_type_combo.addItem("全部", None)
         for item in QuestionType:
             self.question_type_combo.addItem(item.display,item.value)
         self.add_form_row(form_layout, 2, "题型:", self.question_type_combo)
         self.question_type_combo.setStyleSheet(combo_style)
         # 标签
         self.question_label_combo = QComboBox()
-        self.question_label_combo.addItem("全部", None)
         for item in QuestionLabel:
             self.question_label_combo.addItem(item.display,item.value)
         self.add_form_row(form_layout, 3, "标签:", self.question_label_combo)
@@ -260,15 +270,31 @@ class DataDialog(QDialog):
     def emit_confirmed(self):
         form_data = self.get_form_data()
         form_data["mode"] = self.mode
+        
+        # 检查必填字段
+        if not self.context_input.toPlainText():
+            self.show_message("error", "错误", "上下文不能为空")
+            return
+            
+        if not self.question_input.toPlainText():
+            self.show_message("error", "错误", "问题不能为空") 
+            return
+            
+        if not self.answer_input.toPlainText():
+            self.show_message("error", "错误", "答案不能为空")
+            return
+            
+        # 编辑模式下添加数据ID
         if self.mode == 'edit' and self.data:
             form_data["data_id"] = self.data.get("data_id")
+            
         self.confirmed.emit(form_data)
         self.accept()
 
     def fill_data(self):
         if not self.data:
             return
-        self.dataset_input.setText(str(self.data.get("data_id", "")))
+        # self.dataset_input.setText(str(self.data.get("data_id", "")))
         
         # 设置数据分类
         data_type = self.data.get("data_type")
@@ -324,3 +350,20 @@ class DataDialog(QDialog):
 
         self.confirm_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
+
+    def show_message(self, type, title, message):
+        """显示信息对话框"""
+        msg = QMessageBox()
+        msg.setStyleSheet("""
+            QMessageBox {
+                font-family: "Microsoft YaHei";
+                width: 300px;
+                height: 150px;
+            }
+        """)
+        if type == "error":
+            msg.critical(self, title, message)
+        elif type == "warning":
+            msg.warning(self, title, message)
+        else:
+            msg.information(self, title, message)

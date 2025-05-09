@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QSpacerItem, QSizePolicy, QHeaderView
 )
 from PySide6.QtCore import Qt, QDate, Signal, QSize
-from PySide6.QtGui import QIcon, QColor, QFont, QPalette
+from PySide6.QtGui import QIcon, QColor, QFont, QPalette, QPixmap
 from functools import partial
 from sqlalchemy import true
 from utils.database import DatabaseManager
@@ -145,57 +145,6 @@ class DataCollectionView(QWidget):
         """)
         filter_layout.addWidget(self.name_filter_input, 0, 4)
 
-        # # 状态筛选
-        # status_label = QLabel("状态:")
-        # status_label.setStyleSheet("font-size: 14px; color: #333;")
-        # filter_layout.addWidget(status_label, 0, 2)
-
-        # self.status_filter_combo = QComboBox()
-        # self.status_filter_combo.addItems(["全部", "启用", "停用"])
-        # filter_layout.addWidget(self.status_filter_combo, 0, 3)
-        # self.status_filter_combo.setStyleSheet("""
-        #     QComboBox {
-        #         font-family: 'Microsoft YaHei';
-        #         font-size: 14px;
-        #         color: #333;
-        #         background: white;
-        #         border: 1px solid #dcdfe6;
-        #         border-radius: 4px;
-        #         padding: 6px 12px 6px 8px;
-        #         min-width: 80px;
-        #         selection-background-color: #e6f7ff;
-        #     }
-        #     QComboBox:hover {
-        #         border-color: #c0c4cc;
-        #     }
-        #     }
-        #     QComboBox:on {
-        #         background: #f5f5f5;
-        #     }
-        #     QComboBox::drop-down {
-        #         subcontrol-origin: padding;
-        #         subcontrol-position: right center;
-        #         width: 20px;
-        #         border: none;
-        #         padding: 0;
-        #     }
-        #     QComboBox::down-arrow {
-        #         image: url(utils/img/down_arrow.png);
-        #         width: 12px;
-        #         height: 12px;
-        #     }
-        # """)
-
-        # # 数据分类
-        # category_label = QLabel("分类:")
-        # category_label.setStyleSheet("font-size: 14px; color: #333;")
-        # filter_layout.addWidget(category_label, 0, 4)
-
-        # self.category_filter_combo = QComboBox()
-        # self.category_filter_combo.addItems(["全部", "视频", "图片", "文本", "音频"])
-        # filter_layout.addWidget(self.category_filter_combo, 0, 5)
-        # self.category_filter_combo.setStyleSheet(self.status_filter_combo.styleSheet())
-
         # 第二行筛选条件 - 日期范围
         date_label = QLabel("创建时间:")
         date_label.setStyleSheet("font-size: 14px; color: #333;")
@@ -257,6 +206,7 @@ class DataCollectionView(QWidget):
         button_layout.setContentsMargins(0, 0, 0, 0)
 
         self.query_button = QPushButton()
+        self.query_button.setCursor(Qt.PointingHandCursor)
         self.query_button.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
@@ -272,6 +222,7 @@ class DataCollectionView(QWidget):
         """)
 
         self.reset_button = QPushButton()
+        self.reset_button.setCursor(Qt.PointingHandCursor)
         self.reset_button.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
@@ -298,6 +249,7 @@ class DataCollectionView(QWidget):
         action_layout.setSpacing(8)
 
         self.insert_button = QPushButton()
+        self.insert_button.setCursor(Qt.PointingHandCursor)
         self.insert_button.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
@@ -487,6 +439,7 @@ class DataCollectionView(QWidget):
         self.prev_btn.setStyleSheet(self.page_button_style())
         self.prev_btn.setIcon(QIcon("utils/img/left.png"))
         self.prev_btn.setIconSize(QSize(24, 24))
+        self.prev_btn.setCursor(Qt.PointingHandCursor)
         pagination_layout.addWidget(self.prev_btn)
 
         # 页码按钮容器
@@ -501,6 +454,7 @@ class DataCollectionView(QWidget):
         self.next_btn.setStyleSheet(self.page_button_style())
         self.next_btn.setIcon(QIcon("utils/img/right.png"))
         self.next_btn.setIconSize(QSize(24, 24))
+        self.next_btn.setCursor(Qt.PointingHandCursor)
         pagination_layout.addWidget(self.next_btn)
 
         parent_layout.addWidget(pagination_frame)
@@ -539,12 +493,14 @@ class DataCollectionView(QWidget):
                 }
             """
 
-    # def current_page(self):
-    #     """获取当前页码"""
-    #     return int(self.page_combo.currentText())
-
     def update_table(self, data_collections, total_items, current_page, total_pages):
         """更新表格数据和分页信息"""
+         # 先清除所有 cellWidgets（按钮等）
+        for row in range(self.dataset_table.rowCount()):
+            for col in range(self.dataset_table.columnCount()):
+                widget = self.dataset_table.cellWidget(row, col)
+                if widget:
+                    widget.setParent(None)
         # 处理空数据状态
         if not data_collections:
             self.dataset_table.setRowCount(1)
@@ -583,7 +539,6 @@ class DataCollectionView(QWidget):
 
                 # 添加操作按钮
                 self.add_action_buttons(row, str(data_collection.get("collection_id", "")))
-                print(f"collection_id: {data_collection.get('collection_id', '')}")
 
         # 更新分页信息
         self.total_pages = total_pages
@@ -688,34 +643,6 @@ class DataCollectionView(QWidget):
         self.end_date_edit.setDate(QDate.currentDate())
 
         self.reset_signal.emit()
-
-    # def update_pagination(self, total_items, current_page, total_pages):
-    #     """更新分页控件状态"""
-    #     self.total_label.setText(f"共 {total_items} 条")
-    #     # self.page_szie.setText(f"每页 10 条/共 {total_pages} 页")
-        
-    #     # # 更新页码下拉框
-    #     # self.page_combo.blockSignals(True)
-    #     # self.page_combo.clear()
-    #     # if total_pages > 0:
-    #     #     self.page_combo.addItems([str(i) for i in range(1, total_pages + 1)])
-    #     #     self.page_combo.setCurrentText(str(current_page))
-    #     # self.page_combo.blockSignals(False)
-    #     for btn in self.page_buttons:
-    #         btn.setParent(None)
-    #     self.page_buttons.clear()
-
-    #     # 添加页码按钮
-    #     for i in range(1, total_pages + 1):
-    #         btn = QPushButton(str(i))
-    #         btn.setStyleSheet(self.page_button_style(i == current_page))
-    #         btn.clicked.connect(lambda _, page=i: self.page_changed_signal.emit(int(page)))
-    #         self.page_button_container.addWidget(btn)
-    #         self.page_buttons.append(btn)
-        
-    #     # 更新按钮状态
-    #     self.prev_btn.setEnabled(current_page > 1)
-    #     self.next_btn.setEnabled(current_page < total_pages)
 
     def update_pagination(self, total_items, current_page, total_pages):
         """更新分页信息，确保超过 8 页时固定为 8 个按钮"""
@@ -834,19 +761,64 @@ class DataCollectionView(QWidget):
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
-        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setIconPixmap(QPixmap("utils/img/info.png"))  # 更合适大小
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg_box.setDefaultButton(QMessageBox.No)
-        
-        # 添加自定义样式
+
+        # 设置按钮文本与 objectName
+        yes_button = msg_box.button(QMessageBox.Yes)
+        no_button = msg_box.button(QMessageBox.No)
+        yes_button.setText("确认")
+        no_button.setText("取消")
+        yes_button.setObjectName("yesButton")
+        no_button.setObjectName("noButton")
+
+        # 设置样式表
         msg_box.setStyleSheet("""
             QMessageBox {
+                background-color: #ffffff;
                 font-family: "Microsoft YaHei";
-                min-width: 300px;
-                min-height: 150px;
+                border-radius: 8px;
+                padding: 6px;
+            }
+
+            QMessageBox QLabel {
+                color: #374151;
+                font-size: 14px;
+                line-height: 1.5em;
+                padding: 0;
+                min-width: 150px;
+            }
+
+            QMessageBox QPushButton {
+                min-width: 40px;
+                min-height: 24px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 6px;
+            }
+
+            QPushButton#yesButton {
+                background-color: #81D4FA;
+                color: #374151;
+                border: none;
+            }
+
+            QPushButton#yesButton:hover {
+                background-color: #05bbed;
+            }
+
+            QPushButton#noButton {
+                background-color: #F3F4F6;
+                color: #374151;
+                border: 1px solid #D1D5DB;
+            }
+
+            QPushButton#noButton:hover {
+                background-color: #E5E7EB;
             }
         """)
-        
         # 连接确认信号
         if collection_id is not None:
             yes_button = msg_box.button(QMessageBox.Yes)
@@ -857,11 +829,9 @@ class DataCollectionView(QWidget):
     def prev_page_signal_emit(self):
         if self.current_page > 1:
             new_page = self.current_page - 1
-            print(f"[按钮点击] 当前页: {self.current_page} -> 上一页: {new_page}")
             self.page_changed_signal.emit(new_page)
             
     def next_page_signal_emit(self):
         if self.current_page < self.total_pages:
             new_page = self.current_page + 1
-            print(f"[按钮点击] 当前页: {self.current_page} -> 下一页: {new_page}")
             self.page_changed_signal.emit(new_page)
