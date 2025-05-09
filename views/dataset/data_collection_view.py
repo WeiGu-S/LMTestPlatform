@@ -266,9 +266,6 @@ class DataCollectionView(QWidget):
                 min-width: 60px;
                 image: url(utils/img/search.png);
             }
-            QPushButton:hover {
-                cursor: pointer;
-            }
             QPushButton:pressed {
                 padding: 4px;
             }
@@ -283,9 +280,6 @@ class DataCollectionView(QWidget):
                 height: 40px;
                 min-width: 60px;
                 image: url(utils/img/reset.png);
-            }
-            QPushButton:hover {
-                cursor: pointer;
             }
             QPushButton:pressed {
                 padding: 4px;
@@ -316,7 +310,6 @@ class DataCollectionView(QWidget):
                 min-height: 24px;
             }
             QPushButton:hover {
-                cursor: pointer;
                 text-decoration: 新增数据集;
             }
             QPushButton:pressed {
@@ -337,7 +330,6 @@ class DataCollectionView(QWidget):
                 min-height: 24px;
             }
             QPushButton:hover {
-                cursor: pointer;
                 text-decoration: 导出数据;
             }
             QPushButton:pressed {

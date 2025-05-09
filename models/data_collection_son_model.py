@@ -5,12 +5,14 @@ from sqlalchemy.sql import func
 from datetime import datetime
 import enum
 import math
-from utils.logger import get_logger
+from utils.database import DatabaseManager
+from utils.logger import get_logger, setup_logging
 from datetime import datetime, timezone, timedelta
-from models.eum import DataType, QuestionType, QuestionLabel
+from models.enum import DataType, QuestionType, QuestionLabel
 import uuid
 
 Base = declarative_base()
+setup_logging()
 logger = get_logger("data_collection_son_model")
 
 class DataStatus(enum.Enum):
@@ -19,18 +21,7 @@ class DataStatus(enum.Enum):
 
 
 class DataModel(Base):
-    # __tablename__ = 't_data_info'
-
-    # id = Column(Integer, primary_key=True, autoincrement=True, comment='数据ID，主键自增')
-    # collection_id = Column(Integer, nullable=False, comment='数据集ID')
-    # title = Column(String(255), nullable=False, comment='数据标题')
-    # answer = Column(String(255), nullable=False, comment='数据答案')
-    # status = Column(SQLAlchemyEnum(DataStatus), nullable=False, comment='数据状态')
-    # tag = Column(String(255), nullable=True, comment='数据标签')
-    # del_flag = Column(Integer, nullable=False, default=0, comment='删除标记，0未删除，1已删除')
-    # created_time = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    # updated_time = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment='最后更新时间')
-
+    """数据模型"""
     __tablename__ = 't_data_collection_info'
 
     data_id = Column(String(20), primary_key=True, comment='数据ID')
@@ -71,7 +62,6 @@ class DataModel(Base):
                 cls.del_flag == 0,
                 cls.collection_id == collection_id
             )
-        logger.debug(f"Applying filters: {str(filters)}")
 
         try:
             # 过滤已删除的数据集
@@ -79,18 +69,17 @@ class DataModel(Base):
                 cls.del_flag == 0,
                 cls.collection_id == collection_id
             )
-            # 名称过滤
-            if filters.get('question'):
-                search_term = f"%{str(filters['title']).strip()}%"
-                query = query.filter(cls.question.like(search_term))
+            # 数据分类过滤
+            if filters["data_type"]:
+                query = query.filter(cls.data_type == filters["data_type"])
 
-            # 状态过滤
-            if filters.get('data_type') and filters['data_type'] != '全部':
-                status_map = {s.value: s for s in DataType}
-                if str(filters['data_type']) in status_map:
-                    query = query.filter(cls.data_type == status_map[str(filters['data_type'])])
-                else:
-                    logger.warning(f"Invalid data_type value: {filters['data_type']}")
+            # 题型过滤
+            if filters["question_type"]:
+                query = query.filter(cls.question_type == filters["question_type"])
+
+            # 标签过滤
+            if filters["question_label"]:
+                query = query.filter(cls.question_label == filters["question_label"])
 
             # 日期处理（兼容QDate和date类型）
             if filters.get('start_date'):
@@ -140,15 +129,15 @@ class DataModel(Base):
             
             return data_dicts, total_items, total_pages
         except Exception as e:
-            logger.error(f"获取分页数据集时出错: {e}", exc_info=True)
+            logger.error(f"获取分页数据时出错: {e}", exc_info=True)
             session.rollback() # 出错时回滚
             return [], 0, 1
 
     @classmethod
     def get_all_data(cls, session, filters=None, collection_id=None):
-        """获取所有数据集，基于过滤条件（用于导出）"""
+        """获取所有数据，基于过滤条件（用于导出）"""
         if not session:
-            logger.error("获取所有数据集时数据库会话不可用")
+            logger.error("获取所有数据时数据库会话不可用")
             return []
 
         query = session.query(cls)
@@ -158,7 +147,7 @@ class DataModel(Base):
             data = query.order_by(cls.created_time.desc()).all()
             return [d.to_dict() for d in data]
         except Exception as e:
-            logger.error(f"获取所有数据集时出错: {e}", exc_info=True)
+            logger.error(f"获取所有数据时出错: {e}", exc_info=True)
             session.rollback()
             return []
 
@@ -200,42 +189,67 @@ class DataModel(Base):
             return None
     
     @classmethod
-    def get_datas_by_id(cls, session, collection_id):
+    def get_datas_by_id(cls,collection_id):
         """根据数据集ID获取所有关联数据"""
         try:
-            datas = session.query(cls).filter(cls.collection_id == collection_id).first()
-            return datas
+            with DatabaseManager.get_session() as session:
+                datas = session.query(cls).filter(cls.collection_id == collection_id).first()
+                return datas
         except Exception as e:
             logger.error(f"获取数据时出错 (ID: {collection_id}): {e}", exc_info=True)
             session.rollback()
             return None
-    # @classmethod
-    # def get_datasetid_by_name(cls, session, question):
-    #     """根据名称获取数据集ID"""
-    #     try:
-    #         dataset = session.query(cls).filter(cls.name == question).first()
-    #         return dataset.id if dataset else None
-    #     except Exception as e:
-    #         logger.error(f"获取数据集ID时出错 (名称: {question}): {e}", exc_info=True)
-    #         session.rollback()
-    #         return None
 
     @classmethod
-    def delete_datas(cls, session, collection_id):
+    def get_data_by_id(cls, data_id):
+        """根据数据ID获取单个数据"""
+        try:
+            with DatabaseManager.get_session() as session:
+                data = session.query(cls).filter(cls.data_id == data_id).first()
+                return data
+        except Exception as e:
+            logger.error(f"获取数据时出错 (ID: {data_id}): {e}", exc_info=True)
+            session.rollback()
+            return None
+
+    @classmethod
+    def delete_datas(cls, collection_id):
         """批量删除所有关联数据"""
         try:
-            datas = session.query(cls).filter(cls.id == collection_id,).first() 
-            if datas:
-                for data in datas:
-                    data.del_flag = 1
-                session.commit()
-                logger.info(f"已成功删除数据 (ID: {collection_id})")
-                return True
-            else:
-                logger.warning(f"数据不存在 (ID: {collection_id})")
-                return False
+            with DatabaseManager.get_session() as session:
+                datas = session.query(cls).filter(cls.collection_id == collection_id,).first() 
+                if datas:
+                    for data in datas:
+                        data.del_flag = 1
+                    session.commit()
+                    logger.info(f"已成功删除相关联数据 (ID: {collection_id})")
+                    return True
+                else:
+                    logger.warning(f"相关联数据不存在 (ID: {collection_id})")
+                    return False
         except Exception as e:
-            logger.error(f"删除数据时出错 (ID: {collection_id}): {e}", exc_info=True)
+            logger.error(f"删除相关联数据时出错 (ID: {collection_id}): {e}", exc_info=True)
+            session.rollback()
+            return False
+
+    @classmethod
+    def delete_data(cls, data_id):
+        """删除单个数据"""
+        try:
+            with DatabaseManager.get_session() as session:
+                data = session.query(cls).filter(cls.data_id == data_id).first()
+                print(data)
+                if data:
+                    data.del_flag = 1
+                    session.commit()
+                    logger.info(f"已成功删除数据 (ID: {data_id})")
+                    return True
+                else:
+                    logger.warning(f"数据不存在 (ID: {data_id})")
+                    return False
+                
+        except Exception as e:
+            logger.error(f"删除数据时出错 (ID: {data_id}): {e}", exc_info=True)
             session.rollback()
             return False
 

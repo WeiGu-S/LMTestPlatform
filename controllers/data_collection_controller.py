@@ -1,7 +1,8 @@
 from functools import partial
 from itertools import count
 from PySide6.QtCore import QObject, Slot
-from models.eum import DataType, QuestionLabel, QuestionType
+from controllers import data_controller
+from models.enum import DataType, QuestionLabel, QuestionType
 from utils.database import DatabaseManager
 from utils.logger import get_logger
 from views.dataset.data_collection_view import DataCollectionView
@@ -12,6 +13,7 @@ from views.dataset.data_collection_details_dialog import DataCollectionDetailsDi
 from views.dataset.import_dialog import ImportDialog
 from models.data_collection_son_model import DataModel
 from functools import partial
+from controllers.data_controller import DataController
 
 
 logger = get_logger("data_collection_controller")
@@ -38,8 +40,6 @@ class DataCollectionController(QObject):
         self.view.import_signal.connect(self.show_import_dialog)
         self.view.delete_signal.connect(self.handle_delete)
         self.view.delete_confirm_signal.connect(self.delete_data_collection)
-        # self.view.prev_page_signal.connect(self.handle_page_change)
-        # self.view.next_page_signal.connect(self.handle_page_change)
 
     @Slot()
     def load_initial_data(self):
@@ -151,6 +151,7 @@ class DataCollectionController(QObject):
         """处理查看请求"""
         data_collection = DataCollectionModel.get_data_collection_by_id(DatabaseManager.get_session(), int(collection_id))
         dialog = DataCollectionDetailsDialog(data_collection=data_collection,parent=self.view,collection_id=collection_id)
+        data_controller=DataController(dialog, collection_id)
         dialog.exec()
 
     # 新增导出、查看、导入、删除的槽函数模板
@@ -208,8 +209,8 @@ class DataCollectionController(QObject):
             collection_name = DataCollectionModel.get_data_collection_by_id(DatabaseManager.get_session(), int(collection_id)).collection_name
             try:
                 with DatabaseManager.get_session() as session:
-                    DataCollectionModel.delete_data_collection(session, collection_id)
                     DataModel.delete_datas(session, collection_id)
+                    DataCollectionModel.delete_data_collection(session, collection_id)
                     session.commit()
                     self.view.show_message("提示", f"数据集:{collection_name}删除成功")
                     self.load_data()
@@ -224,17 +225,3 @@ class DataCollectionController(QObject):
         print(f"Changing page: {self.current_page} -> {page}")
         self.current_page = page
         self.load_data()
-
-    # @Slot(int)
-    # def handle_prev_page(self, page):
-    #     """处理上一页请求"""
-    #     if page > 1:
-    #         self.current_page = page - 1
-    #         self.load_data()
-
-    # @Slot(int)
-    # def handle_next_page(self, page):
-    #     """处理下一页请求"""
-    #     if page < self.view.total_pages:
-    #         self.current_page = page + 1
-    #         self.load_data()

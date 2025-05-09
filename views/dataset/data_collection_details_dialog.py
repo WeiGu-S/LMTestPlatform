@@ -1,25 +1,36 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QGridLayout, QHBoxLayout, QTabWidget, QWidget,
                             QFormLayout, QLabel, QTableWidget, QTableWidgetItem, QPushButton,
-                            QHeaderView, QFrame, QSpacerItem, QSizePolicy, QLineEdit, QComboBox,QDateEdit)
-from PySide6.QtCore import Qt, QDate, QSize
+                            QHeaderView, QFrame, QSpacerItem, QSizePolicy, QLineEdit, QComboBox,QDateEdit,QMessageBox)
+from PySide6.QtCore import Qt, QDate, QSize, Signal
 from PySide6.QtGui import QFont, QColor, QIntValidator, QIcon
+from controllers import data_controller
 from models import data_collection_son_model
-from models.eum import DataType, QuestionLabel, QuestionType
+from models.enum import DataType, QuestionLabel, QuestionType
+from utils.debug_runner import restart_application
 from utils.logger import get_logger
 from models.data_collection_model import DataCollectionModel
 from models.data_collection_son_model import DataModel
 from utils.database import DatabaseManager
 
-logger = get_logger("dataset_details_dialog")
+logger = get_logger("data_collection_details_dialog")
 
 class DataCollectionDetailsDialog(QDialog):
+
+    query_signal = Signal(dict)
+    reset_signal = Signal()
+    data_operate_signal = Signal(str)
+    data_delete_signal = Signal(str)
+    page_changed_signal = Signal(int)
+    data_delete_confirmed_signal = Signal(str)
+    insert_signal = Signal()
+
     def __init__(self, data_collection, parent=None, collection_id=None):
         super().__init__(parent)
         self.data_collection = data_collection
         self.collection_id = collection_id
         self.current_page = 1
         self.per_page = 10
-        
+        self.total_pages = 0
         self.init_ui()
         
     def init_ui(self):
@@ -103,6 +114,9 @@ class DataCollectionDetailsDialog(QDialog):
         # 2. 筛选区域
         filter_widget = self.create_filter_widget()
         main_layout.addWidget(filter_widget)
+        # 3. 按钮区域
+        button_widget = self.create_button_widget()
+        main_layout.addWidget(button_widget)
         # 3. 表格区域
         table_widget = self.create_table_widget()
         main_layout.addWidget(table_widget, 1)  # 添加伸缩因子
@@ -112,9 +126,6 @@ class DataCollectionDetailsDialog(QDialog):
         # # 5. 按钮区域
         # button_widget = self.create_button_widget()
         # main_layout.addWidget(button_widget)
-        
-        # 初始加载数据
-        self.load_table_data()
 
     def create_top_info_widget(self):
         """创建顶部信息区域 - 字段名与值同行展示 + 横向布局"""
@@ -291,9 +302,6 @@ class DataCollectionDetailsDialog(QDialog):
                 min-height: 40px;
                 min-width: 40px;
             }
-            QPushButton:hover {
-                cursor: pointer;
-            }
             QPushButton:pressed {
                 padding: 4px;
             }
@@ -387,8 +395,8 @@ class DataCollectionDetailsDialog(QDialog):
         layout.addWidget(reset_btn)
 
         # 信号连接
-        search_btn.clicked.connect(self.on_search_clicked)
-        reset_btn.clicked.connect(self.on_reset_clicked)
+        search_btn.clicked.connect(self.emit_query_signal)
+        reset_btn.clicked.connect(self.reset_filters)
 
         return filter_frame
     
@@ -416,10 +424,10 @@ class DataCollectionDetailsDialog(QDialog):
 
         self.data_table.setFont(QFont("Microsoft YaHei", 14))
         self.data_table.setAlternatingRowColors(True)
-        self.data_table.setColumnCount(7)
+        self.data_table.setColumnCount(8)
 
         # 调整列的顺序，将问题类型列置于数据分类之后
-        headers = ["序号", "数据分类", "题型", "上下文", "问题", "答案", "问题标签"]
+        headers = ["序号", "数据分类", "题型", "上下文", "问题", "答案", "问题标签", "操作"]
         self.data_table.setHorizontalHeaderLabels(headers)
         self.data_table.verticalHeader().setVisible(False)   # 隐藏垂直表头
         self.data_table.setEditTriggers(QTableWidget.NoEditTriggers)  # 禁用编辑
@@ -464,6 +472,7 @@ class DataCollectionDetailsDialog(QDialog):
         header.setSectionResizeMode(4, QHeaderView.Stretch)
         header.setSectionResizeMode(5, QHeaderView.Stretch)
         header.setSectionResizeMode(6, QHeaderView.Fixed)
+        header.setSectionResizeMode(7, QHeaderView.Fixed)
 
         # 表格样式设置        
         self.data_table.setStyleSheet("""
@@ -496,6 +505,7 @@ class DataCollectionDetailsDialog(QDialog):
         self.data_table.setColumnWidth(4, 200)  # 问题列
         self.data_table.setColumnWidth(5, 200)  # 答案列
         self.data_table.setColumnWidth(6, 80)  # 标签列
+        self.data_table.setColumnWidth(7, 100)  # 标签列
 
         table_layout.addWidget(self.data_table)
 
@@ -530,7 +540,7 @@ class DataCollectionDetailsDialog(QDialog):
         self.prev_btn.setStyleSheet(self.page_button_style())
         self.prev_btn.setIcon(QIcon("utils/img/left.png"))
         self.prev_btn.setIconSize(QSize(24, 24))
-        self.prev_btn.clicked.connect(self.on_prev_page)
+        self.prev_btn.clicked.connect(self.prev_page_signal_emit)
         pagination_layout.addWidget(self.prev_btn)
 
         # 页码按钮容器
@@ -545,7 +555,7 @@ class DataCollectionDetailsDialog(QDialog):
         self.next_btn.setStyleSheet(self.page_button_style())
         self.next_btn.setIcon(QIcon("utils/img/right.png"))
         self.next_btn.setIconSize(QSize(24, 24))
-        self.next_btn.clicked.connect(self.on_next_page)
+        self.next_btn.clicked.connect(self.next_page_signal_emit)
         pagination_layout.addWidget(self.next_btn)
 
         return pagination_frame
@@ -589,26 +599,23 @@ class DataCollectionDetailsDialog(QDialog):
         widget = QWidget()
         widget.setStyleSheet("""
             QWidget {
-                background-color: white;
+                background-color: transparent;
                 border-radius: 8px;
-                padding: 12px 16px;
+                padding: 0;
             }
         """)
 
         layout = QHBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(8)
 
         button_style = """
             QPushButton {
                 background-color: transparent;
                 border: none;
-                padding: 0;
-                min-height: 50px;
-                min-width: 50px;
-            }
-            QPushButton:hover {
-                cursor: pointer;
+                padding: 0px;
+                min-height: 30px;
+                min-width: 30px;
             }
             QPushButton:pressed {
                 padding: 4px;
@@ -616,58 +623,25 @@ class DataCollectionDetailsDialog(QDialog):
         """
 
         # 确定按钮
-        self.confirm_btn = QPushButton()
-        self.confirm_btn.setObjectName("confirmBtn")
-        self.confirm_btn.setProperty("class", "primary")
-        self.confirm_btn.setStyleSheet(button_style + """
+        self.insert_btn = QPushButton()
+        self.insert_btn.setObjectName("confirmBtn")
+        self.insert_btn.setProperty("class", "primary")
+        self.insert_btn.setStyleSheet(button_style + """
             QPushButton {
-                image: url(utils/img/confirm.png);
+                image: url(utils/img/add.png);
             }
         """)
-        # 取消按钮
-        self.cancel_btn = QPushButton()
-        self.cancel_btn.setObjectName("cancelBtn")
-        self.cancel_btn.setProperty("class", "secondary")
-        self.cancel_btn.setStyleSheet(button_style + """
-            QPushButton {
-                image: url(utils/img/cancel.png);
-            }
-        """)
+        self.insert_btn.clicked.connect(self.insert_signal.emit)
         # 添加到布局
-        layout.addStretch(1)
-        layout.addWidget(self.confirm_btn)
-        layout.addWidget(self.cancel_btn)
-        layout.addStretch(1)
-        # 连接信号
-        # self.confirm_btn.clicked.connect(self.on_confirm)
-        self.cancel_btn.clicked.connect(self.reject)
+        layout.addWidget(self.insert_btn)
+        layout.addStretch()
         return widget
     
-    def load_table_data(self):
+    def load_table_data(self, datas, total_items, total_pages, current_page):
         """加载表格数据"""
         try:
-            # 清空现有数据
-            self.data_table.setRowCount(0)
-            
-            # 获取筛选条件
-            filters = {
-                "data_type": self.type_combo.currentData(),
-                "question_type": self.question_type_combo.currentData(),
-                "tag": self.tag_filter_combo.currentData(),
-                "page": self.current_page,
-                "per_page": self.per_page
-            }
             
             self.data_table.setRowCount(0)
-            with DatabaseManager.get_session() as session:
-                datas, total_items, total_pages = DataModel.get_paginated_data(
-                        collection_id=int(self.collection_id),
-                        session=session,
-                        page=self.current_page,
-                        per_page=10,
-                        filters=filters
-                    )
-
             # 处理空数据状态
             if not datas:
                 self.data_table.setRowCount(1)
@@ -692,11 +666,11 @@ class DataCollectionDetailsDialog(QDialog):
                 index_item.setTextAlignment(Qt.AlignCenter)
                 
                 # 数据类型列
-                data_type_item = QTableWidgetItem(DataType.display_of(data.get('data_type', '')))
+                data_type_item = QTableWidgetItem(DataType.display_of(data.get("data_type", "")))
                 data_type_item.setTextAlignment(Qt.AlignCenter)
                 
                 # 问题类型列
-                question_type_item = QTableWidgetItem(QuestionType.display_of(data.get('question_type', '')))
+                question_type_item = QTableWidgetItem(QuestionType.display_of(data.get("question_type", "")))
                 question_type_item.setTextAlignment(Qt.AlignCenter)
                 
                 # 上下文列（限制长度并添加省略号）
@@ -721,7 +695,7 @@ class DataCollectionDetailsDialog(QDialog):
                 answer_item.setToolTip(answer)
                 
                 # 标签列
-                label_item = QTableWidgetItem(QuestionLabel.display_of(data.get('question_label', '')))
+                label_item = QTableWidgetItem(QuestionLabel.display_of(data.get("question_label", "")))
                 label_item.setTextAlignment(Qt.AlignCenter)
                 
                 # 设置所有项
@@ -733,8 +707,14 @@ class DataCollectionDetailsDialog(QDialog):
                 self.data_table.setItem(row, 5, answer_item)
                 self.data_table.setItem(row, 6, label_item)
 
+                # 添加操作列按钮
+
+                self.add_action_buttons(row, str(data.get("data_id", "")))
+                print(f'生成按钮的data_id:{str(data.get("data_id", ""))}')
+
             # 更新分页信息
-            self.update_pagination_info(total_items, self.current_page, total_pages)
+            self.total_pages = total_pages
+            self.update_pagination_info(total_items, current_page, total_pages)
 
         except Exception as e:
             logger.error(f"加载表格数据失败: {str(e)}", exc_info=True)
@@ -745,6 +725,69 @@ class DataCollectionDetailsDialog(QDialog):
             error_item.setForeground(QColor("#EF4444"))
             self.data_table.setItem(0, 0, error_item)
             self.update_pagination_info(0, 1, 1)
+
+    # 添加操作列按钮
+    def add_action_buttons(self, row, data_id):
+        """添加操作列按钮"""
+        # 创建按钮容器（使用QWidget更轻量）
+        button_widget = QWidget()
+        button_widget.setStyleSheet("background: transparent;")
+
+        # 使用水平布局（带间距控制）
+        button_layout = QHBoxLayout(button_widget)
+        button_layout.setContentsMargins(5, 2, 5, 2)  # 适当的内边距
+        button_layout.setSpacing(6)  # 按钮间距
+        
+        # 基础按钮样式（调整尺寸和内边距）
+        base_style = """
+        QPushButton {
+            padding: 0;
+            min-width: 30px; /* 增加最小宽度以容纳图标和文字 */
+            min-height: 30px; /* 设置合适的最小高度 */
+            font-family: 'Microsoft YaHei';
+        }
+        QPushButton:pressed {
+            padding: 2px 3px; /* 轻微调整按压效果 */
+        }
+        """
+        
+        # 查看按钮（优化图标显示）
+        view_btn = QPushButton()
+        view_btn.setStyleSheet(base_style + """
+            background: transparent;
+            image: url(utils/img/view.png);
+            width: 16px;
+            height: 16px;
+            border: none;
+        """)
+        view_btn.setCursor(Qt.PointingHandCursor)
+        
+        # 删除按钮（确保可见性）
+        delete_btn = QPushButton()
+        delete_btn.setStyleSheet(base_style + """
+            background: transparent;
+            image: url(utils/img/delete.png);
+            width: 12px;
+            height: 12px;
+            border: none;
+        """)
+        delete_btn.setCursor(Qt.PointingHandCursor)
+        
+        # 事件绑定
+        view_btn.clicked.connect(lambda: self.data_operate_signal.emit(data_id))
+        delete_btn.clicked.connect(lambda: self.data_delete_signal.emit(data_id))
+        
+        # 添加到布局（保持等间距）
+        button_layout.addWidget(view_btn)
+        button_layout.addWidget(delete_btn)
+        
+        # 设置到表格（关键修复步骤）
+        self.data_table.setCellWidget(row, 7, button_widget)
+        
+        # 强制列宽设置（双重保障）
+        # self.data_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Fixed)
+        if self.data_table.columnWidth(7) < 110:
+            self.data_table.setColumnWidth(7, 110)
     
     def update_pagination_info(self, total_items, current_page, total_pages):
         """更新分页信息，确保超过 8 页时固定为 8 个按钮"""
@@ -824,21 +867,21 @@ class DataCollectionDetailsDialog(QDialog):
                 ellipsis = QPushButton("···")
                 ellipsis.setStyleSheet(self.page_button_style())
                 ellipsis.setFixedSize(24, 24)
-                ellipsis.clicked.connect(lambda _, current_page=current_page: self.on_page_button_clicked(max(1,current_page - 5))) # 前省略号
+                ellipsis.clicked.connect(lambda _, current_page=current_page: self.page_changed_signal.emit(max(1,current_page - 5))) # 前省略号
                 self.page_button_container.addWidget(ellipsis)
             elif page == "next_ellipsis":
                 # 省略号
                 ellipsis = QPushButton("···")
                 ellipsis.setStyleSheet(self.page_button_style()) # Replace with your actual image path
                 ellipsis.setFixedSize(24, 24)
-                ellipsis.clicked.connect(lambda _, current_page=current_page: self.on_page_button_clicked(min(total_pages, current_page + 5))) # 后省略号
+                ellipsis.clicked.connect(lambda _, current_page=current_page: self.page_changed_signal.emit(min(total_pages, current_page + 5))) # 后省略号
                 self.page_button_container.addWidget(ellipsis)
             else:
                 # 分页按钮
                 btn = QPushButton(str(page))
                 btn.setFixedSize(24, 24)
                 btn.setStyleSheet(self.page_button_style(active=(page == current_page)))
-                btn.clicked.connect(lambda _, page=page: self.on_page_button_clicked(page))
+                btn.clicked.connect(lambda _, page=page: self.page_changed_signal.emit(page))
                 self.page_buttons.append(btn)
                 self.page_button_container.addWidget(btn)
 
@@ -846,43 +889,77 @@ class DataCollectionDetailsDialog(QDialog):
         self.prev_btn.setEnabled(current_page > 1)
         self.next_btn.setEnabled(current_page < total_pages)
 
-    def on_search_clicked(self):
-        """搜索按钮点击事件"""
-        # 根据筛选条件加载数据
-        self.current_page = 1
-        self.load_table_data()
-
+    def emit_query_signal(self):
+        """收集筛选条件并发射查询信号"""
+        filters = {
+            'data_type': self.type_combo.currentData(),
+            'question_type': self.question_type_combo.currentData(),
+            'question_label': self.tag_filter_combo.currentData(),
+            'start_date': self.start_date_edit.date(),
+            'end_date': self.end_date_edit.date()
+        }
+        self.query_signal.emit(filters)
     
-    def on_reset_clicked(self):
-        """重置按钮点击事件"""
+    def reset_filters(self):
+        """重置筛选条件"""
         self.type_combo.setCurrentIndex(0)
         self.question_type_combo.setCurrentIndex(0)
-        self.tag_filter_combo.setCurrentIndex(0)
-        self.current_page = 1
-        self.load_table_data()
-    
-    def on_prev_page(self):
-        """上一页"""
+        self.tag_filter_combo.setCurrentIndex(0)  
+        self.start_date_edit.setDate(QDate.currentDate().addMonths(-1))
+        self.end_date_edit.setDate(QDate.currentDate())
+
+        self.reset_signal.emit()
+
+    def show_message(self,type,title, message):
+        """显示信息对话框"""
+        msg = QMessageBox()
+        msg.setStyleSheet("""
+            QMessageBox {
+                font-family: "Microsoft YaHei";
+                width: 300px;
+                height: 150px;
+            }
+        """)
+        if type == "error":
+            msg.critical(self, title, message)
+        elif type == "warning":
+            msg.warning(self, title, message)
+        else:
+            msg.information(self, title, message)
+
+    def ask_for_confirmation(self, title, message, data_id=None):
+        """显示删除确认对话框（修正信号连接问题）"""
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(message)
+        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+        
+        # 添加自定义样式
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                font-family: "Microsoft YaHei";
+                width: 300px;
+                height: 150px;
+            }
+        """)
+        
+        # 连接确认信号
+        if data_id is not None:
+            yes_button = msg_box.button(QMessageBox.Yes)
+            yes_button.clicked.connect(lambda: self.data_delete_confirmed_signal.emit(str(data_id)))
+        
+        return msg_box.exec() == QMessageBox.Yes
+
+    def prev_page_signal_emit(self):
         if self.current_page > 1:
-            self.current_page -= 1
-            self.load_table_data()
-    
-    def on_next_page(self):
-        """下一页"""
-        self.current_page += 1
-        self.load_table_data()
-    
-    def on_page_changed(self, page):
-        """页码改变事件"""
-        self.current_page = page
-        self.load_table_data()
-
-    def on_page_button_clicked(self, page):
-        """页码按钮点击事件"""
-        self.current_page = page
-        self.load_table_data()
-
-    def on_export_clicked(self):
-        """导出数据"""
-        # TODO: 实现导出功能
-        print("导出数据")
+            new_page = self.current_page - 1
+            print(f"[按钮点击] 当前页: {self.current_page} -> 上一页: {new_page}")
+            self.page_changed_signal.emit(new_page)
+            
+    def next_page_signal_emit(self):
+        if self.current_page < self.total_pages:
+            new_page = self.current_page + 1
+            print(f"[按钮点击] 当前页: {self.current_page} -> 下一页: {new_page}")
+            self.page_changed_signal.emit(new_page)

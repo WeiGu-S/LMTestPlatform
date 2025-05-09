@@ -35,13 +35,10 @@ def main():
     main_window.add_page(data_collection_view, "数据集管理")
     main_window.add_page(home_view, "首页")
 
-
     # 创建主控制器，负责主窗口页面切换
     main_controller = MainController(main_window)
     # 创建数据集控制器，负责数据集页面逻辑
     data_collection_controller = DataCollectionController(data_collection_view) # 实例化控制器
-
-
     # 显示主窗口
     main_window.show()
 

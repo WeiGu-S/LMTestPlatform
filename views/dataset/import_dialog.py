@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QColor, QBrush, QFontMetrics
 from models.data_collection_model import DataCollectionModel
 from models.data_collection_son_model import DataModel, DataStatus
-from models.eum import BaseEnum, DataType, QuestionLabel, QuestionType
+from models.enum import BaseEnum, DataType, QuestionLabel, QuestionType
 from utils.database import DatabaseManager
 import pandas as pd
 import pandas as pd
