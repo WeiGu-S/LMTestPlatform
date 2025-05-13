@@ -374,6 +374,7 @@ class DataCollectionDetailsDialog(QDialog):
 
         # 搜索按钮
         search_btn = QPushButton()
+        search_btn.setToolTip("查询")
         search_btn.setObjectName("searchBtn")
         search_btn.setCursor(Qt.PointingHandCursor)
         search_btn.setProperty("class", "primary")
@@ -386,6 +387,7 @@ class DataCollectionDetailsDialog(QDialog):
 
         # 重置按钮
         reset_btn = QPushButton()
+        reset_btn.setToolTip("重置")
         reset_btn.setObjectName("resetBtn")
         reset_btn.setCursor(Qt.PointingHandCursor)
         reset_btn.setProperty("class", "secondary")
@@ -426,10 +428,10 @@ class DataCollectionDetailsDialog(QDialog):
 
         self.data_table.setFont(QFont("Microsoft YaHei", 14))
         self.data_table.setAlternatingRowColors(True)
-        self.data_table.setColumnCount(8)
+        self.data_table.setColumnCount(9)
 
         # 调整列的顺序，将问题类型列置于数据分类之后
-        headers = ["序号", "数据分类", "题型", "上下文", "问题", "答案", "问题标签", "操作"]
+        headers = ["序号", "数据分类", "题型", "上下文", "问题", "答案", "大模型答案", "问题标签", "操作"]
         self.data_table.setHorizontalHeaderLabels(headers)
         self.data_table.verticalHeader().setVisible(False)   # 隐藏垂直表头
         self.data_table.setEditTriggers(QTableWidget.NoEditTriggers)  # 禁用编辑
@@ -473,8 +475,9 @@ class DataCollectionDetailsDialog(QDialog):
         header.setSectionResizeMode(3, QHeaderView.Stretch)
         header.setSectionResizeMode(4, QHeaderView.Stretch)
         header.setSectionResizeMode(5, QHeaderView.Stretch)
-        header.setSectionResizeMode(6, QHeaderView.Fixed)
+        header.setSectionResizeMode(6, QHeaderView.Stretch)
         header.setSectionResizeMode(7, QHeaderView.Fixed)
+        header.setSectionResizeMode(8, QHeaderView.Fixed)
 
         # 表格样式设置        
         self.data_table.setStyleSheet("""
@@ -506,8 +509,9 @@ class DataCollectionDetailsDialog(QDialog):
         self.data_table.setColumnWidth(3, 200)  # 上下文列
         self.data_table.setColumnWidth(4, 200)  # 问题列
         self.data_table.setColumnWidth(5, 200)  # 答案列
-        self.data_table.setColumnWidth(6, 80)  # 标签列
-        self.data_table.setColumnWidth(7, 100)  # 标签列
+        self.data_table.setColumnWidth(6, 200)  # 大模型答案列
+        self.data_table.setColumnWidth(7, 80)  # 标签列
+        self.data_table.setColumnWidth(8, 80)  # 操作列
 
         table_layout.addWidget(self.data_table)
 
@@ -538,6 +542,8 @@ class DataCollectionDetailsDialog(QDialog):
 
         # 上一页按钮
         self.prev_btn = QPushButton()
+        self.prev_btn.setCursor(Qt.PointingHandCursor)
+        self.prev_btn.setToolTip("上一页")
         self.prev_btn.setFixedSize(24, 24)
         self.prev_btn.setStyleSheet(self.page_button_style())
         self.prev_btn.setIcon(QIcon("utils/img/left.png"))
@@ -553,6 +559,8 @@ class DataCollectionDetailsDialog(QDialog):
 
         # 下一页按钮
         self.next_btn = QPushButton()
+        self.next_btn.setCursor(Qt.PointingHandCursor)
+        self.next_btn.setToolTip("下一页")
         self.next_btn.setFixedSize(24, 24)
         self.next_btn.setStyleSheet(self.page_button_style())
         self.next_btn.setIcon(QIcon("utils/img/right.png"))
@@ -626,6 +634,8 @@ class DataCollectionDetailsDialog(QDialog):
 
         # 确定按钮
         self.insert_btn = QPushButton()
+        self.insert_btn.setCursor(Qt.PointingHandCursor)
+        self.insert_btn.setToolTip("确定")
         self.insert_btn.setObjectName("confirmBtn")
         self.insert_btn.setProperty("class", "primary")
         self.insert_btn.setStyleSheet(button_style + """
@@ -695,6 +705,17 @@ class DataCollectionDetailsDialog(QDialog):
                     answer = answer[:100] + "..."
                 answer_item = QTableWidgetItem(answer)
                 answer_item.setToolTip(answer)
+
+                # 大模型答案列
+                model_answer = data.get('model_answer', '') if data.get('model_answer', '') else "暂无数据"
+                if model_answer == "暂无数据":
+                    model_answer_item = QTableWidgetItem(model_answer)
+                    model_answer_item.setTextAlignment(Qt.AlignCenter)
+                else:
+                    if len(model_answer) > 100:
+                        model_answer = model_answer[:100] + "..."
+                    model_answer_item = QTableWidgetItem(model_answer)
+                    model_answer_item.setToolTip(model_answer)
                 
                 # 标签列
                 label_item = QTableWidgetItem(QuestionLabel.display_of(data.get("question_label", "")))
@@ -707,7 +728,8 @@ class DataCollectionDetailsDialog(QDialog):
                 self.data_table.setItem(row, 3, context_item)
                 self.data_table.setItem(row, 4, question_item)
                 self.data_table.setItem(row, 5, answer_item)
-                self.data_table.setItem(row, 6, label_item)
+                self.data_table.setItem(row, 6, model_answer_item)
+                self.data_table.setItem(row, 7, label_item)
 
                 # 添加操作列按钮
 
@@ -753,6 +775,8 @@ class DataCollectionDetailsDialog(QDialog):
         
         # 查看按钮（优化图标显示）
         view_btn = QPushButton()
+        view_btn.setCursor(Qt.PointingHandCursor)
+        view_btn.setToolTip("查看数据详情")
         view_btn.setStyleSheet(base_style + """
             background: transparent;
             image: url(utils/img/view.png);
@@ -764,6 +788,8 @@ class DataCollectionDetailsDialog(QDialog):
         
         # 删除按钮（确保可见性）
         delete_btn = QPushButton()
+        delete_btn.setCursor(Qt.PointingHandCursor)
+        delete_btn.setToolTip("删除数据")
         delete_btn.setStyleSheet(base_style + """
             background: transparent;
             image: url(utils/img/delete.png);
@@ -782,12 +808,12 @@ class DataCollectionDetailsDialog(QDialog):
         button_layout.addWidget(delete_btn)
         
         # 设置到表格（关键修复步骤）
-        self.data_table.setCellWidget(row, 7, button_widget)
+        self.data_table.setCellWidget(row, 8, button_widget)
         
         # 强制列宽设置（双重保障）
         # self.data_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Fixed)
-        if self.data_table.columnWidth(7) < 110:
-            self.data_table.setColumnWidth(7, 110)
+        if self.data_table.columnWidth(8) < 110:
+            self.data_table.setColumnWidth(8, 110)
     
     def update_pagination_info(self, total_items, current_page, total_pages):
         """更新分页信息，确保超过 8 页时固定为 8 个按钮"""
@@ -865,6 +891,7 @@ class DataCollectionDetailsDialog(QDialog):
             if page == "prev_ellipsis":
                 # 省略号
                 ellipsis = QPushButton("···")
+                ellipsis.setToolTip("更多")
                 ellipsis.setStyleSheet(self.page_button_style())
                 ellipsis.setFixedSize(24, 24)
                 ellipsis.clicked.connect(lambda _, current_page=current_page: self.page_changed_signal.emit(max(1,current_page - 5))) # 前省略号
@@ -872,6 +899,7 @@ class DataCollectionDetailsDialog(QDialog):
             elif page == "next_ellipsis":
                 # 省略号
                 ellipsis = QPushButton("···")
+                ellipsis.setToolTip("更多")
                 ellipsis.setStyleSheet(self.page_button_style()) # Replace with your actual image path
                 ellipsis.setFixedSize(24, 24)
                 ellipsis.clicked.connect(lambda _, current_page=current_page: self.page_changed_signal.emit(min(total_pages, current_page + 5))) # 后省略号

@@ -4,7 +4,7 @@
 
 ## 项目描述
 
-这是一个用于大模型测试的桌面应用程序，提供数据收集、管理和分析功能。
+这是一个用于大模型测试的桌面应用程序，提供数据收集、管理和分析功能。主要用于评估和比较不同大语言模型的性能表现。
 
 ## 功能特性
 
@@ -31,10 +31,10 @@ pip install -r requirements.txt
 python app.py
 ```
 2. 通过GUI界面进行各项操作
-```
-```
+
 3. 开发模式
 ```bash
 python utils/debug_runner.py
 ``` 
-    utils/debug_runner.py可实时监控文件变化，方便开发调试
+utils/debug_runner.py可实时监控文件变化，方便开发调试
+```

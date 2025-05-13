@@ -85,6 +85,7 @@ class ImportDialog(QDialog):
         """
         # 创建并添加按钮和显示组件
         self.select_file_btn = QPushButton()
+        self.select_file_btn.setToolTip("请选择文件")
         self.select_file_btn.setMinimumSize(100, 32)
         self.select_file_btn.setStyleSheet(button_style+"""
             QPushButton {
@@ -110,6 +111,7 @@ class ImportDialog(QDialog):
         """)
         
         self.download_template_btn = QPushButton()
+        self.download_template_btn.setToolTip("下载模板")
         self.download_template_btn.setMinimumSize(100, 32)
         self.download_template_btn.setStyleSheet(button_style+"""
             QPushButton {
@@ -272,6 +274,7 @@ class ImportDialog(QDialog):
         """
         # 创建确认按钮
         self.confirm_btn = QPushButton()
+        self.confirm_btn.setToolTip("确认")
         self.confirm_btn.setStyleSheet(button_style+"""
             QPushButton {
                 image: url(utils/img/confirm.png);
@@ -281,6 +284,7 @@ class ImportDialog(QDialog):
         
         # 创建取消按钮
         self.cancel_btn = QPushButton()
+        self.cancel_btn.setToolTip("取消")
         self.cancel_btn.setMinimumSize(80, 32)
         self.cancel_btn.setStyleSheet(button_style+"""
             QPushButton {

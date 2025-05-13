@@ -30,6 +30,7 @@ class DataModel(Base):
     context = Column(String, nullable=True, comment='上下文')
     question = Column(String(500), nullable=True, comment='问题')
     answer = Column(String(500), nullable=True, comment='答案')
+    model_answer = Column(String(500), nullable=True, comment='模型答案') # 大模型答案
     question_type = Column(Integer, nullable=True, comment='题型')
     question_label = Column(Integer, nullable=True, comment='问题标签')
     created_time = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
@@ -47,6 +48,7 @@ class DataModel(Base):
             "context": self.context,
             "question": self.question,
             "answer": self.answer, 
+            "model_answer": self.model_answer, # 大模型答案
             "question_type": self.question_type.value if isinstance(self.question_type, QuestionType) else self.question_type, # 返回枚举值
             "question_label": self.question_label.value if isinstance(self.question_label, QuestionLabel) else self.question_label, # 返回枚举值,
             "del_flag": self.del_flag,
@@ -160,6 +162,7 @@ class DataModel(Base):
         question_label = datas.get('question_label')
         question_type = datas.get('question_type')
         context = datas.get('context')
+        model_answer = datas.get('model_answer')
 
         if datas is None:
             logger.error("数据集数据为空")
@@ -178,6 +181,7 @@ class DataModel(Base):
                 context=context,
                 question=question,
                 answer=answer,
+                model_answer=model_answer,
                 question_label=question_label,
                 del_flag=0,
                 created_time=datetime.now(timezone(timedelta(hours=8))),
@@ -277,6 +281,7 @@ class DataModel(Base):
                 data.context = datas.get('context')
                 data.question = datas.get('question')
                 data.answer = datas.get('answer')
+                data.model_answer = datas.get('model_answer')
                 data.question_label = datas.get('question_label')
                 data.updated_time = datetime.now(timezone(timedelta(hours=8)))
                 data.updated_by = datas.get('updated_by')

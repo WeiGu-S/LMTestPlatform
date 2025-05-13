@@ -206,6 +206,7 @@ class DataCollectionView(QWidget):
         button_layout.setContentsMargins(0, 0, 0, 0)
 
         self.query_button = QPushButton()
+        self.query_button.setToolTip("查询")
         self.query_button.setCursor(Qt.PointingHandCursor)
         self.query_button.setStyleSheet("""
             QPushButton {
@@ -222,6 +223,7 @@ class DataCollectionView(QWidget):
         """)
 
         self.reset_button = QPushButton()
+        self.reset_button.setToolTip("重置")
         self.reset_button.setCursor(Qt.PointingHandCursor)
         self.reset_button.setStyleSheet("""
             QPushButton {
@@ -249,6 +251,7 @@ class DataCollectionView(QWidget):
         action_layout.setSpacing(8)
 
         self.insert_button = QPushButton()
+        self.insert_button.setToolTip("新增数据集")
         self.insert_button.setCursor(Qt.PointingHandCursor)
         self.insert_button.setStyleSheet("""
             QPushButton {
@@ -435,6 +438,7 @@ class DataCollectionView(QWidget):
 
         # 上一页按钮
         self.prev_btn = QPushButton()
+        self.prev_btn.setToolTip("上一页")
         self.prev_btn.setFixedSize(24, 24)
         self.prev_btn.setStyleSheet(self.page_button_style())
         self.prev_btn.setIcon(QIcon("utils/img/left.png"))
@@ -450,6 +454,7 @@ class DataCollectionView(QWidget):
 
         # 下一页按钮
         self.next_btn = QPushButton()
+        self.next_btn.setToolTip("下一页")
         self.next_btn.setFixedSize(24, 24)
         self.next_btn.setStyleSheet(self.page_button_style())
         self.next_btn.setIcon(QIcon("utils/img/right.png"))
@@ -570,6 +575,7 @@ class DataCollectionView(QWidget):
         
         # 查看按钮（优化图标显示）
         view_btn = QPushButton()
+        view_btn.setToolTip("查看")
         view_btn.setStyleSheet(base_style + """
             background: transparent;
             image: url(utils/img/view.png);
@@ -581,6 +587,7 @@ class DataCollectionView(QWidget):
         
         # 编辑按钮（修正尺寸）
         edit_btn = QPushButton()
+        edit_btn.setToolTip("编辑数据集")
         edit_btn.setStyleSheet(base_style + """
             background: transparent;
             image: url(utils/img/edit.png);
@@ -592,6 +599,7 @@ class DataCollectionView(QWidget):
 
         # 导入按钮
         import_btn = QPushButton()
+        import_btn.setToolTip("导入数据")
         import_btn.setStyleSheet(base_style + """
             background: transparent;
             image: url(utils/img/import.png);
@@ -603,6 +611,7 @@ class DataCollectionView(QWidget):
         
         # 删除按钮（确保可见性）
         delete_btn = QPushButton()
+        delete_btn.setToolTip("删除数据集")
         delete_btn.setStyleSheet(base_style + """
             background: transparent;
             image: url(utils/img/delete.png);
@@ -720,6 +729,7 @@ class DataCollectionView(QWidget):
             if page == "prev_ellipsis":
                 # 省略号
                 ellipsis = QPushButton("···")
+                ellipsis.setToolTip("更多")
                 ellipsis.setStyleSheet(self.page_button_style())
                 ellipsis.setFixedSize(24, 24)
                 ellipsis.clicked.connect(lambda _, current_page=current_page: self.page_changed_signal.emit(max(1,current_page - 5))) # 前省略号
@@ -727,6 +737,7 @@ class DataCollectionView(QWidget):
             elif page == "next_ellipsis":
                 # 省略号
                 ellipsis = QPushButton("···")
+                ellipsis.setToolTip("更多")
                 ellipsis.setStyleSheet(self.page_button_style()) # Replace with your actual image path
                 ellipsis.setFixedSize(24, 24)
                 ellipsis.clicked.connect(lambda _, current_page=current_page: self.page_changed_signal.emit(min(total_pages, current_page + 5))) # 后省略号

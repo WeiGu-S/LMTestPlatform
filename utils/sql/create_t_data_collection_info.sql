@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `t_data_collection_info` (
   `context` TEXT COMMENT '上下文',
   `question` VARCHAR(500) COMMENT '问题',
   `answer` VARCHAR(500) COMMENT '答案',
+  `model_anser` VARCHAR(500) COMMENT '大模型答案',
   `question_type` SMALLINT UNSIGNED COMMENT '题型: 数据字典：选择题、判断题、问答题等',
   `question_label` SMALLINT UNSIGNED COMMENT '问题标签: 数据字典：数学、文字理解、Rag召回等',
   `created_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

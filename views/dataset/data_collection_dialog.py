@@ -131,6 +131,8 @@ class DataCollectionDialog(QDialog):
         """
 
         self.confirm_btn = QPushButton()
+        self.confirm_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.confirm_btn.setToolTip("确认")
         self.confirm_btn.setObjectName("confirmBtn")
         self.confirm_btn.setProperty("class", "primary")
         self.confirm_btn.setStyleSheet(button_style + """
@@ -140,6 +142,8 @@ class DataCollectionDialog(QDialog):
         """)
 
         self.cancel_btn = QPushButton()
+        self.cancel_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self.cancel_btn.setToolTip("取消")
         self.cancel_btn.setObjectName("cancelBtn")
         self.cancel_btn.setProperty("class", "secondary")
         self.cancel_btn.setStyleSheet(button_style + """

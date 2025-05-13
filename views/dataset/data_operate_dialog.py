@@ -31,7 +31,7 @@ class DataDialog(QDialog):
             self.setWindowTitle("创建数据")
 
     def setup_ui(self):
-        self.setMinimumSize(450, 380)
+        self.setMinimumSize(600, 450)
         # self.resize(450, 380)
 
         main_layout = QVBoxLayout(self)
@@ -199,6 +199,7 @@ class DataDialog(QDialog):
         """
 
         self.confirm_btn = QPushButton()
+        self.confirm_btn.setToolTip("确认")
         self.confirm_btn.setObjectName("confirmBtn")
         self.confirm_btn.setProperty("class", "primary")
         self.confirm_btn.setStyleSheet(button_style + """
@@ -208,6 +209,7 @@ class DataDialog(QDialog):
         """)
 
         self.cancel_btn = QPushButton()
+        self.cancel_btn.setToolTip("取消")
         self.cancel_btn.setObjectName("cancelBtn")
         self.cancel_btn.setProperty("class", "secondary")
         self.cancel_btn.setStyleSheet(button_style + """
