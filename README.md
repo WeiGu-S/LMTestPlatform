@@ -34,7 +34,5 @@ python app.py
 
 3. 开发模式
 ```bash
-python utils/debug_runner.py
+python utils/debug_runner.py         ## utils/debug_runner.py可实时监控文件变化，方便开发调试
 ``` 
-utils/debug_runner.py可实时监控文件变化，方便开发调试
-```
