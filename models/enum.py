@@ -51,3 +51,12 @@ class QuestionLabel(BaseEnum):
     READING = 2, '文字理解'
     RAG = 3, 'RAG召回'
 
+# 模型类型枚举
+class ModelType(BaseEnum):
+    REMOTE_MODEL = 1, '远程模型'
+    LOCAL_MODEL = 2, '本地模型'
+
+# 配置类型枚举
+class ConfigType(BaseEnum):
+    TEST_MODEL = 1, '被测模型'
+    REFEREE_MODEL = 2, '裁判模型'

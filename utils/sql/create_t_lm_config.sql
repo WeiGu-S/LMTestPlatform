@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS `t_lm_config` (
   `config_id` VARCHAR(20) NOT NULL COMMENT '配置ID',
+  `model_name` VARCHAR(200) COMMENT '模型名称',
   `config_type` SMALLINT UNSIGNED COMMENT '配置用途(数据字典：被测模型、裁判模型等)',
   `model_type` SMALLINT UNSIGNED COMMENT '模型类型(数据字典：远程模型、本地模型等)',
   `url_info` VARCHAR(200) COMMENT 'URL信息',

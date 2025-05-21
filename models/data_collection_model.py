@@ -11,29 +11,7 @@ import uuid
 Base = declarative_base()
 logger = get_logger("data_collection_model")
 
-# class data_collectionStatus(enum.Enum):
-#     ENABLED = "启用"
-#     DISABLED = "停用"
-
-# class data_collectionCategory(enum.Enum):
-#     VIDEO = "视频"
-#     IMAGE = "图片"
-#     AUDIO = "音频"
-#     TEXT = "文本"
-#     # 可根据实际需求添加其他类别
-
 class DataCollectionModel(Base):
-    # __tablename__ = 't_data_collection_info'
-
-    # id = Column(Integer, primary_key=True, autoincrement=True, comment='数据集ID，主键自增')
-    # collection_name = Column(String(255), nullable=False, unique=True, comment='数据集名称，不允许为空')
-    # data_collection_category = Column(SQLAlchemyEnum(data_collectionCategory), nullable=False, default=data_collectionCategory.VIDEO, index=True, comment='数据集类型')
-    # status = Column(SQLAlchemyEnum(data_collectionStatus), nullable=False, default=data_collectionStatus.ENABLED, index=True, comment='状态')
-    # content_size = Column(Integer, nullable=False, default=0, comment='包含的问题数量，默认0')
-    # remark = Column(String(255), nullable=True, comment='备注')
-    # del_flag = Column(Integer, nullable=False, default=0, comment='删除标记，0未删除，1已删除')
-    # created_time = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    # updated_time = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow, comment='最后更新时间')
 
     __tablename__ = 't_data_collections'
 

@@ -1,15 +1,18 @@
 import sys, os
 from PySide6.QtWidgets import QApplication
+from controllers import model_controller
 from views.main_window import MainWindow
 from views.home_view import HomeView
 from views.dataset.data_collection_view import DataCollectionView # 正确的导入路径
 from controllers.data_collection_controller import DataCollectionController
 from controllers.main_controller import MainController 
+from controllers.model_controller import ModelsController
 from utils.database import DatabaseManager
 from sqlalchemy import text  
 from models.data_collection_model import Base 
 from utils.logger import setup_logging, get_logger
 from utils.database import DatabaseManager
+from views.model_config.model_config_view import ModelConfigView
 
 setup_logging()
 logger = get_logger("app")
@@ -31,14 +34,19 @@ def main():
     # 创建各页面
     home_view = HomeView()
     data_collection_view = DataCollectionView() # 创建数据集页面
+    model_config_view = ModelConfigView()
+
     # 添加页面到主窗口
+    main_window.add_page(model_config_view, "模型管理")
     main_window.add_page(data_collection_view, "数据集管理")
     main_window.add_page(home_view, "首页")
 
     # 创建主控制器，负责主窗口页面切换
     main_controller = MainController(main_window)
     # 创建数据集控制器，负责数据集页面逻辑
-    data_collection_controller = DataCollectionController(data_collection_view) # 实例化控制器
+    data_collection_controller = DataCollectionController(data_collection_view) 
+    # 创建模型控制器，负责模型页面逻辑
+    model_controller = ModelsController(model_config_view)
     # 显示主窗口
     main_window.show()
 

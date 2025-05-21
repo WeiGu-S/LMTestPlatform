@@ -225,20 +225,19 @@ class DataModel(Base):
             return None
 
     @classmethod
-    def delete_datas(cls, collection_id):
+    def delete_datas(cls,session, collection_id):
         """批量删除所有关联数据"""
         try:
-            with DatabaseManager.get_session() as session:
-                datas = session.query(cls).filter(cls.collection_id == collection_id,).first() 
-                if datas:
-                    for data in datas:
-                        data.del_flag = 1
-                    session.commit()
-                    logger.info(f"已成功删除相关联数据 (ID: {collection_id})")
-                    return True
-                else:
-                    logger.warning(f"相关联数据不存在 (ID: {collection_id})")
-                    return False
+            datas = session.query(cls).filter(cls.collection_id == collection_id,).all() 
+            if datas:
+                for data in datas:
+                    data.del_flag = 1
+                session.commit()
+                logger.info(f"已成功删除相关联数据 (ID: {collection_id})")
+                return True
+            else:
+                logger.warning(f"相关联数据不存在 (ID: {collection_id})")
+                return False
         except Exception as e:
             logger.error(f"删除相关联数据时出错 (ID: {collection_id}): {e}", exc_info=True)
             session.rollback()
