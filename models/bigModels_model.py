@@ -19,8 +19,11 @@ class BigModelsModel(Base):
     model_name = Column(String(200), nullable=True, comment='模型名称')
     config_type = Column(Integer, nullable=True, comment='配置用途(数据字典：被测模型、裁判模型等)')
     model_type = Column(Integer, nullable=True, comment='模型类型(数据字典：远程模型、本地模型等)')
+    is_stream = Column(Integer, nullable=True, comment='是否流式') # 0: 非流式 1:流式
     url_info = Column(String(200), nullable=True, comment='URL信息')
-    key_info = Column(String(200), nullable=True, comment='APIKEY信息')
+    headers = Column(String, nullable=True, comment='请求头')
+    body = Column(String, nullable=True, comment='请求体')
+    res_path = Column(String, nullable=True, comment='解析路径')
     model_file = Column(String, nullable=True, comment='模型文件')
     created_time = Column(DateTime, nullable=True, default=datetime.utcnow, comment='创建时间')
     created_by = Column(String(20), nullable=True, comment='创建人')
@@ -35,8 +38,11 @@ class BigModelsModel(Base):
             "model_name": self.model_name,
             "config_type": self.config_type,
             "model_type": self.model_type,
+            "is_stream": self.is_stream,
             "url_info": self.url_info,
-            "key_info": self.key_info,
+            "headers": self.headers,
+            "body": self.body,
+            "res_path": self.res_path,
             "model_file": self.model_file,
             "created_time": self.created_time.strftime('%Y-%m-%d %H:%M:%S') if self.created_time else None, # 格式化时间
             "created_by": self.created_by,
@@ -147,8 +153,12 @@ class BigModelsModel(Base):
         model_name = model_datas.get('model_name')
         model_type = model_datas.get('model_type')
         config_type = model_datas.get('config_type')
+        is_stream = model_datas.get('is_stream')
         url_info = model_datas.get('url_info')
-        key_info = model_datas.get('key_info')    
+        key_info = model_datas.get('key_info')  
+        headers = model_datas.get('headers')
+        body = model_datas.get('body')
+        res_path = model_datas.get('res_path')
         # 校验模型名称是否已存在且未删除且非空
         if not model_name:
             logger.error("模型名称不能为空")
@@ -172,8 +182,11 @@ class BigModelsModel(Base):
                 model_name=model_name,
                 config_type=config_type,
                 model_type=model_type,
+                is_stream=is_stream,
                 url_info=url_info,
-                key_info=key_info,
+                headers=headers,
+                body=body,
+                res_path=res_path,
                 del_flag=0,
                 created_time=datetime.now(timezone(timedelta(hours=8))),  # 设置为中国时区(UTC+8)
                 created_by="user"
@@ -254,8 +267,11 @@ class BigModelsModel(Base):
                         model.model_name = model_datas.get('model_name')
                         model.config_type = model_datas.get('config_type')
                         model.model_type = model_datas.get('model_type')
+                        model.is_stream = model_datas.get('is_stream')
                         model.url_info = model_datas.get('url_info')
-                        model.key_info = model_datas.get('key_info')
+                        model.headers = model_datas.get('headers')
+                        model.body = model_datas.get('body')
+                        model.res_path = model_datas.get('res_path')
                         model.updated_by = model_datas.get('updated_by')
                         model.updated_time = datetime.now(timezone(timedelta(hours=8)))  # 设置为中国时区(UTC+8)
                         session.commit()

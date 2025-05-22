@@ -1,3 +1,4 @@
+from crypt import methods
 from functools import partial
 from itertools import count
 from PySide6.QtCore import QObject, Slot
@@ -10,6 +11,8 @@ from datetime import datetime, timezone, timedelta
 from functools import partial
 from views.model_config.model_config_dialog import ModelConfigDialog
 from views.model_config.model_config_view import ModelConfigView
+import requests
+import json
 
 
 logger = get_logger("model_controller")
@@ -34,8 +37,8 @@ class ModelsController(QObject):
         self.view.edit_signal.connect(self.show_model_config_dialog)
         self.view.delete_signal.connect(self.handle_delete)
         self.view.delete_confirm_signal.connect(self.delete_model)
+        self.view.call_signal.connect(self.call_model)
 
-    @Slot()
     def load_initial_data(self):
         """加载初始数据"""
         self.load_data()
@@ -117,8 +120,11 @@ class ModelsController(QObject):
                             'model_name': form_data['model_name'],
                             'model_type': form_data['model_type'],
                             'config_type': form_data['config_type'],
+                            'is_stream': form_data['is_stream'],
                             'url_info': form_data['url_info'],
-                            'key_info': form_data['key_info']
+                            'headers': form_data['headers'],
+                            'body': form_data['body'],
+                            'res_path': form_data['res_path']
                         })
                         session.commit()
                         self.view.show_message('info', "提示", "模型新增成功")
@@ -133,9 +139,11 @@ class ModelsController(QObject):
                             'model_name': form_data['model_name'],
                             'model_type': form_data['model_type'],
                             'config_type': form_data['config_type'],
+                            'is_stream': form_data['is_stream'],
                             'url_info': form_data['url_info'],
-                            'key_info': form_data['key_info'],
-                            'update_by': 'user'
+                            'headers': form_data['headers'],
+                            'body': form_data['body'],
+                            'res_path': form_data['res_path']
                         })
                         self.view.show_message('info', "提示", "模型修改成功")
                     except Exception as update_error:
@@ -195,3 +203,26 @@ class ModelsController(QObject):
         """处理页码变化"""
         self.current_page = page
         self.load_data()
+
+    @Slot(str)
+    def call_model(self, config_id):
+        """调用模型"""
+        try:
+            with DatabaseManager.get_session() as session:
+                model = BigModelsModel.get_model_info_by_id(session, int(config_id)).to_dict()
+                if not model:
+                    self.view.show_message('error',"错误", "模型不存在")
+                    return
+                url = model['url_info']
+                headers = json.loads(model['headers'])
+                body = json.loads(model['body'])
+            response = requests.post(url=url, headers=headers, json=body)
+            if response.status_code == 200:
+                self.view.show_message('info', "提示", f"接口调用成功")
+                return response.json()
+            else:
+                self.view.show_message('error', "错误", f"接口调用失败: {response.status_code}")
+                return None
+        except Exception as e:
+            self.logger.error(f"调用模型 {config_id} 失败: {e}")
+            self.view.show_message('error', "错误", f"调用模型失败:{e}")

@@ -23,18 +23,21 @@ class MainWindow(QMainWindow):
         self.menu_list.setFixedWidth(200)
         self.menu_list.setStyleSheet("""
             QListWidget {
-                background-color: #34495e;
+                background-color: #80a492;
                 color: white;
                 font-size: 16px;
-                border: none;
+                border: 1px solid #96a1a0;
+                border-radius: 8px;
+                padding: 10px
             }
             QListWidget::item {
                 height: 50px;
                 padding-left: 20px;
-                border-bottom: 1px solid #2c3e50;
+
             }
             QListWidget::item:selected {
                 background-color: #3498db;
+                border-radius: 8px;
             }
         """)
         main_layout.addWidget(self.menu_list)

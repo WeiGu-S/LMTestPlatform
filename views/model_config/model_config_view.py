@@ -1,3 +1,4 @@
+from subprocess import call
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
     QTableWidgetItem, QPushButton, QFileDialog, QMessageBox,
@@ -25,7 +26,7 @@ class ModelConfigView(QWidget):
     page_changed_signal = Signal(int)    # 页码变化信号
     edit_signal = Signal(str)      # 修改模型信号，传递ID
     view_signal = Signal(str)        # 查看模型信号，传递ID
-    import_signal = Signal(str)       # 导入数据信号，传递ID
+    call_signal = Signal(str)       # 导入数据信号，传递ID
     delete_signal = Signal(str)       # 删除模型信号，传递ID
     delete_confirm_signal = Signal(str) # 删除确认信号, 传递ID
     prev_page_signal = Signal(int)
@@ -618,16 +619,16 @@ class ModelConfigView(QWidget):
         edit_btn.setCursor(Qt.PointingHandCursor)
 
         # 导入按钮
-        import_btn = QPushButton()
-        import_btn.setToolTip("导入数据")
-        import_btn.setStyleSheet(base_style + """
+        call_btn = QPushButton()
+        call_btn.setToolTip("导入数据")
+        call_btn.setStyleSheet(base_style + """
             background: transparent;
-            image: url(utils/img/import.png);
+            image: url(utils/img/call.png);
             width: 12px;
             height: 12px;
             border: none;
         """)
-        import_btn.setCursor(Qt.PointingHandCursor)
+        call_btn.setCursor(Qt.PointingHandCursor)
         
         # 删除按钮（确保可见性）
         delete_btn = QPushButton()
@@ -644,13 +645,13 @@ class ModelConfigView(QWidget):
         # 事件绑定
         view_btn.clicked.connect(lambda: self.view_signal.emit(config_id))
         edit_btn.clicked.connect(lambda: self.edit_signal.emit(config_id))
-        import_btn.clicked.connect(lambda: self.import_signal.emit(config_id))
+        call_btn.clicked.connect(lambda: self.call_signal.emit(config_id))
         delete_btn.clicked.connect(lambda: self.delete_signal.emit(config_id))
         
         # 添加到布局（保持等间距）
-        button_layout.addWidget(view_btn)
+        # button_layout.addWidget(view_btn)
         button_layout.addWidget(edit_btn)
-        button_layout.addWidget(import_btn)
+        button_layout.addWidget(call_btn)
         button_layout.addWidget(delete_btn)
         
         # 设置到表格

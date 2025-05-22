@@ -1,12 +1,12 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QLineEdit, QComboBox, QTextEdit, QFrame,
-    QPushButton, QSpacerItem, QSizePolicy, QMessageBox
+    QPushButton, QSpacerItem, QSizePolicy, QMessageBox, QCheckBox
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QCursor
 from utils.logger import get_logger
-from models.enum import ModelType, ConfigType
+from models.enum import ModelType, ConfigType, IsStream
 
 logger = get_logger("model_config_dialog")
 
@@ -28,8 +28,8 @@ class ModelConfigDialog(QDialog):
             self.setWindowTitle("创建模型")
 
     def setup_ui(self):
-        self.setMinimumSize(250, 380)
-        self.resize(600, 450)
+        self.setMinimumSize(450, 500)
+        self.resize(600, 950)
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(12, 24, 12, 24)
@@ -68,35 +68,6 @@ class ModelConfigDialog(QDialog):
 
         parent_layout.addWidget(title_frame)
 
-    def create_combo_box(self):
-        combo = QComboBox()
-        combo.setStyleSheet("""
-            QComboBox {
-                font-size: 14px;
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 8px;
-                min-width: 100px;
-            }
-            QComboBox:hover {
-                border-color: #c0c4cc;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: right center;
-                width: 20px;
-                border: none;
-            }
-            QComboBox::down-arrow {
-                image: url(utils/img/down_arrow.png);
-                width: 12px;
-                height: 12px;
-            }
-        """)
-        combo.setMinimumSize(240, 36)
-        combo.setProperty("class", "form-input")
-        return combo
-
     def init_form_area(self, parent_layout):
         form_frame = QFrame()
         form_frame.setStyleSheet("""
@@ -127,13 +98,52 @@ class ModelConfigDialog(QDialog):
             self.config_type_combo.addItem(item.display,item.value)
         self.add_form_row(form_layout, 2, "配置用途:", self.config_type_combo)
 
-        # URL信息
-        self.url_input = self.create_line_edit("请输入URL")
-        self.add_form_row(form_layout, 3, "URL信息:", self.url_input)
+        # 是否流式
+        self.is_stream_combo = self.create_combo_box()
+        for item in IsStream:
+            self.is_stream_combo.addItem(item.display,item.value)
+        self.add_form_row(form_layout, 3, "是否流式:", self.is_stream_combo)
 
-        # Key信息
-        self.key_input = self.create_line_edit("请输入Key")
-        self.add_form_row(form_layout, 4, "Key信息:", self.key_input)
+        # URL信息
+        self.url_input = self.create_line_edit("请输入URL，如：https://xxx.openai.com/v1/xxxx")
+        self.add_form_row(form_layout, 4, "URL:", self.url_input)
+
+        # # Key信息
+        # self.key_input = self.create_line_edit('请输入模型输入路径，如：messages;[0];input')
+        # self.add_form_row(form_layout, 6, "输入路径:", self.key_input)
+
+        # 请求头信息
+        self.header_input = self.create_text_edit('请输入 JSON 格式请求头信息，如：\n{\n    "Content-Type": "application/json",\n    "Authorization": "Bearer {key}",\n    "key": "sk-xxxxx"\n}')
+        self.add_form_row(form_layout, 5, "Headers:", self.header_input)
+
+        # 请求体信息
+        self.body_input = self.create_text_edit('请输入 JSON 格式请求体信息，如：\n{\n    "model": "gpt-3.5-turbo",\n    "messages": [{\n            "role": "user",\n            "content": {content}\n        }]\n}')
+        self.add_form_row(form_layout, 6, "Body:", self.body_input)
+        
+        self.tips_label1 = QLabel("""
+        <span style="color: #606266; font-size: 14px;">
+            备注：需要模型输入内容，请在请求体中使用 {content} 占位符。
+        </span>
+        """)
+        self.add_form_row(form_layout, 7, "", self.tips_label1)
+
+        # 解析字段
+        self.res_path_input = self.create_line_edit('请输入解析字段，如：messages;[0];content')
+        self.add_form_row(form_layout, 8, "解析字段:", self.res_path_input)
+
+        self.tips_label2 = QLabel("""
+        <span style="color: #606266; font-size: 14px;">
+            示例：{
+            "messages":[{
+                "role": "user",
+                "content": "我是答案"
+            }]
+            } <br/>
+            解析字段：messages;[0];content <br/>
+        </span>
+        """)
+        # self.tips_label.setWordWrap(True)
+        self.add_form_row(form_layout, 9, "", self.tips_label2)
 
         parent_layout.addWidget(form_frame)
 
@@ -204,6 +214,61 @@ class ModelConfigDialog(QDialog):
         line_edit.setMaxLength(255)
         line_edit.setProperty("class", "form-input")
         return line_edit
+    
+    def create_text_edit(self, placeholder):
+        text_edit = QTextEdit()
+        text_edit.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #dcdfe6;
+                border-radius: 6px;
+                padding: 8px 12px;
+                background-color: #ffffff;
+                font-size: 14px;
+                color: #606266;
+            }
+            QTextEdit:hover {
+                border-color: #409eff;
+            }
+            QTextEdit:focus {
+                border-color: #409eff;
+            }
+        """)
+        text_edit.setPlaceholderText(placeholder)
+        text_edit.setMinimumSize(240, 100)
+        text_edit.setProperty("class", "form-input")
+        return text_edit
+    
+    def create_combo_box(self):
+        combo = QComboBox()
+        combo.setStyleSheet("""
+            QComboBox {
+                font-size: 14px;
+                border: 1px solid #dcdfe6;
+                border-radius: 4px;
+                padding: 8px;
+                min-width: 100px;
+            }
+            QComboBox:hover {
+                border-color: #409eff;
+            }
+            QComboBox:focus {
+                border-color: #409eff;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: right center;
+                width: 20px;
+                border: none;
+            }
+            QComboBox::down-arrow {
+                image: url(utils/img/down_arrow.png);
+                width: 12px;
+                height: 12px;
+            }
+        """)
+        combo.setMinimumSize(240, 36)
+        combo.setProperty("class", "form-input")
+        return combo
 
     def add_form_row(self, layout, row, label_text, widget):
         label = QLabel(label_text)
@@ -225,10 +290,7 @@ class ModelConfigDialog(QDialog):
             self.show_message("error", "错误", "模型名称不能为空")
             return
         if not self.url_input.text():
-            self.show_message("error", "错误", "URL信息不能为空")
-            return
-        if not self.key_input.text():
-            self.show_message("error", "错误", "Key信息不能为空")
+            self.show_message("error", "错误", "URL不能为空")
             return
             
         if self.mode == 'edit' and self.model_data:
@@ -242,16 +304,22 @@ class ModelConfigDialog(QDialog):
         self.model_name_input.setText(self.model_data.get("model_name", ""))
         self.model_type_combo.setCurrentText(ModelType.display_of(self.model_data.get("model_type", "")))
         self.config_type_combo.setCurrentText(ConfigType.display_of(self.model_data.get("config_type", "")))
+        self.is_stream_combo.setCurrentText(IsStream.display_of(self.model_data.get("is_stream", "")))
         self.url_input.setText(self.model_data.get("url_info", ""))
-        self.key_input.setText(self.model_data.get("key_info", ""))
+        self.header_input.setText(self.model_data.get("headers", ""))
+        self.body_input.setText(self.model_data.get("body", ""))
+        self.res_path_input.setText(self.model_data.get("res_path", ""))
 
     def get_form_data(self):
         return {
             'model_name': self.model_name_input.text(),
             'model_type': self.model_type_combo.currentData(),
             'config_type': self.config_type_combo.currentData(),
+            'is_stream': self.is_stream_combo.currentData(),
             'url_info': self.url_input.text(),
-            'key_info': self.key_input.text()
+            'headers': self.header_input.toPlainText(),
+            'body': self.body_input.toPlainText(),
+            'res_path': self.res_path_input.text()
         }
 
     def setup_style(self):

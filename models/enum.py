@@ -60,3 +60,8 @@ class ModelType(BaseEnum):
 class ConfigType(BaseEnum):
     TEST_MODEL = 1, '被测模型'
     REFEREE_MODEL = 2, '裁判模型'
+
+# 是否流式枚举
+class IsStream(BaseEnum):
+    NO = 0, '否'
+    YES = 1, '是'
