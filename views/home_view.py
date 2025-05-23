@@ -14,10 +14,9 @@ class HomeView(QWidget):
         home_frame.setStyleSheet("""
             QWidget {
                 background-color: #ecf0f1;
-                background-image: url(/Users/weigu/Desktop/00001.jpg);
+                background-image: url(utils/img/home_background.jpg);
                 background-position: center;
                 background-repeat: no-repeat;
-                background-size: cover;
                 border-radius: 10px;
             }
         """)
@@ -28,11 +27,11 @@ class HomeView(QWidget):
         home_frame.setLayout(frame_layout)
         
         # 添加欢迎标签
-        welcome_label = QLabel("欢迎使用 上研院 大模型测试平台 v1.0")
+        welcome_label = QLabel("欢迎使用 上研院 大模型测试平台")
         welcome_label.setStyleSheet("""
             QLabel {
                 font-size: 20px;
-                color: #2c3e50;
+                color: white;
                 padding: 20px;
             }
         """)

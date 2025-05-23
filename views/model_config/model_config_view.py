@@ -618,9 +618,9 @@ class ModelConfigView(QWidget):
         """)
         edit_btn.setCursor(Qt.PointingHandCursor)
 
-        # 导入按钮
+        # 测试按钮
         call_btn = QPushButton()
-        call_btn.setToolTip("导入数据")
+        call_btn.setToolTip("测试接口")
         call_btn.setStyleSheet(base_style + """
             background: transparent;
             image: url(utils/img/call.png);
